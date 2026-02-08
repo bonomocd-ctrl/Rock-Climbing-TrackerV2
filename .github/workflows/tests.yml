@@ -6,39 +6,40 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest  # Use the latest Windows runner with MSVC pre-installed
+    runs-on: windows-latest
 
     steps:
-    # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # Step 2: Set up MSVC using the setup-msbuild action
     - name: Set up Visual Studio (MSVC)
       uses: ilammy/msvc-dev-cmd@v1
 
-    # Step 3: Ensure the build directory exists and build the project
     - name: Build tests
       shell: cmd
       run: |
-        REM Ensure the build directory exists
+        REM Create build directory if it doesn't exist
         if not exist "%GITHUB_WORKSPACE%\build" mkdir "%GITHUB_WORKSPACE%\build"
-        
-        REM Change to the build directory
-        pushd "%GITHUB_WORKSPACE%\build"
-        
-        REM Compile the project to produce Rock-Climbing-TrackerV2.exe
-        cl /nologo /EHsc /std:c++17 /D RUN_TESTS "%GITHUB_WORKSPACE%\Rock-Climbing-TrackerV2.cpp" /Fe:Rock-Climbing-TrackerV2.exe
 
-        REM List the contents of the build directory for debugging
+        REM Move into build directory
+        pushd "%GITHUB_WORKSPACE%\build"
+
+        REM Compile the project with doctest enabled
+        cl /nologo /EHsc /std:c++17 /D RUN_TESTS ^
+           "%GITHUB_WORKSPACE%\src\Rock-Climbing-TrackerV2.cpp" ^
+           /Fe:Rock-Climbing-TrackerV2.exe
+
+        REM Show build output for debugging
         dir
 
-        REM Return to the original directory
+        REM Return to repo root
         popd
 
-    # Step 4: Run the compiled tests
-    - name: Run tests
+
+    - name: Debug build output
       shell: cmd
       run: |
-        REM Run the Rock-Climbing-TrackerV2.exe from the build directory
-        "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+        echo ==== BUILD DIRECTORY CONTENTS ====
+        dir "%GITHUB_WORKSPACE%\build"
+
+
