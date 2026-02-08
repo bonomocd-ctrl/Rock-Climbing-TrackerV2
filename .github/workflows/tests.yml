@@ -39,4 +39,5 @@ jobs:
     - name: Run tests
       shell: cmd
       run: |
-        "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+        call "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+
