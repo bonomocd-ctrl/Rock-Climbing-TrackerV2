@@ -642,7 +642,7 @@ int main() {
 
     string name;
     setColor(14);  // Yellow
-    cout << "Enter your name: ";
+    cout << "Enter your full name: ";
     getline(cin, name);
     setColor(14);  // Yellow
     string climbingStyle;
@@ -656,7 +656,7 @@ int main() {
     getline(cin, location);
 
     int days;
-    cout << "How many days do you climb per year? ";
+    cout << "About how many days do you climb per year? ";
     cin >> days;
     tracker.setClimbingDays(days);
 
@@ -664,7 +664,7 @@ int main() {
     do {
         setColor(14);  // Yellow
         cout << "\n====== MENU ======\n";
-        setColor(8);   // Reset
+
         setColor(10);
         cout << "1. Add Climb Session\n";
         cout << "2. Add Training Session\n";
