@@ -1,4 +1,4 @@
-
+ï»¿
 // DOCTEST CONFIG (CI ONLY)
 #ifdef RUN_TESTS
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
@@ -50,53 +50,45 @@ void setColor(int color) {
 }
 
 // =======================================================
-// NEW OOP STRUCTURE (ADDED — DOES NOT REMOVE FEATURES)
+// NEW OOP STRUCTURE (ADDED â€” DOES NOT REMOVE FEATURES)
 // =======================================================
 
 // ==========================
 // BASE CLASS (REQUIRED)
 // ==========================
-enum ActivityType {
-    TRAINING,
-    CLIMB
-};
 class Activity {
 protected:
     string name;
     int duration;
     ClimbDifficulty difficulty;
-    ActivityType type;
 
 public:
-    // Default constructor (REQUIRED)
     Activity()
-        : name(""), duration(0), difficulty(EASY), type(TRAINING) {
+        : name(""), duration(0), difficulty(EASY) {
     }
 
-    // Parameterized constructor (REQUIRED)
-    Activity(string n, int d, ClimbDifficulty diff, ActivityType t)
-        : name(n), duration(d), difficulty(diff), type(t) {
+    Activity(string n, int d, ClimbDifficulty diff)
+        : name(n), duration(d), difficulty(diff) {
     }
 
-    // Getters (REQUIRED)
-    string getName() const { return name; }
-    int getDuration() const { return duration; }
-    ClimbDifficulty getDifficulty() const { return difficulty; }
-    ActivityType getType() const { return type; }
+    virtual ~Activity() {}
 
-    // Setters (REQUIRED)
-    void setName(string n) { name = n; }
+    // ===== SETTERS (ADDED) =====
+    void setName(const string& n) { name = n; }
     void setDuration(int d) { duration = d; }
     void setDifficulty(ClimbDifficulty diff) { difficulty = diff; }
 
-    // Base print (REQUIRED)
-    void print() const {
+    // ===== GETTERS =====
+    string getName() const { return name; }
+    int getDuration() const { return duration; }
+    ClimbDifficulty getDifficulty() const { return difficulty; }
+
+    virtual void print() const {
         cout << "Name: " << name << endl;
         cout << "Duration: " << duration << " minutes" << endl;
         cout << "Difficulty: " << difficultyToString(difficulty) << endl;
     }
 };
-
 
 
 // ==========================
@@ -134,21 +126,24 @@ private:
 public:
     ClimbSession(string n, int d, ClimbDifficulty diff,
         double h, Location loc)
-        : Activity(n, d, diff, CLIMB),
-        hours(h),
-        location(loc) {
+        : Activity(n, d, diff), hours(h), location(loc) {
     }
 
+    // ===== SETTERS (ADDED) =====
+    void setHours(double h) { hours = h; }
+    void setLocation(const Location& loc) { location = loc; }
+
+    // ===== GETTERS =====
     double getHours() const { return hours; }
     Location getLocation() const { return location; }
 
-    // OVERRIDES base print (same name/signature)
-    void print() const {
-        Activity::print();   // REQUIRED base call
+    void print() const override {
+        Activity::print();
         cout << "Hours Climbed: " << hours << endl;
         cout << "Location: " << location.formattedLocation() << endl;
     }
 };
+
 
 
 // ==========================
@@ -160,19 +155,20 @@ private:
 
 public:
     TrainingSession(string n, int d, ClimbDifficulty diff, int r)
-        : Activity(n, d, diff, TRAINING), reps(r) {
+        : Activity(n, d, diff), reps(r) {
     }
 
+    // ===== SETTER (ADDED) =====
+    void setReps(int r) { reps = r; }
+
+    // ===== GETTER =====
     int getReps() const { return reps; }
 
-    // OVERRIDES base print
-    void print() const {
-        Activity::print();   // REQUIRED
+    void print() const override {
+        Activity::print();
         cout << "Reps: " << reps << endl;
     }
 };
-
-
 
 
 
@@ -316,7 +312,7 @@ string loadReport(const string& filename) {
 
 
 // =======================================================
-// STEP 3 — TRACKER CLASS + POLYMORPHIC STORAGE
+// STEP 3 â€” TRACKER CLASS + POLYMORPHIC STORAGE
 // (Original logic preserved, upgraded to OOP)
 // =======================================================
 
@@ -449,15 +445,6 @@ public:
     // ==========================
     // DISPLAY ALL ACTIVITIES
     // ==========================
-    void printActivity(const Activity* a) {
-        if (a->getType() == CLIMB) {
-            static_cast<const ClimbSession*>(a)->print();
-        }
-        else {
-            static_cast<const TrainingSession*>(a)->print();
-        }
-    }
-
     void displayActivities() {
         if (activityCount == 0) {
             cout << "No activities recorded.\n";
@@ -466,7 +453,7 @@ public:
 
         for (int i = 0; i < activityCount; i++) {
             cout << "-----------------------------\n";
-            printActivity(activities[i]);
+            activities[i]->print();   // âœ… virtual dispatch
         }
     }
 
@@ -560,7 +547,7 @@ public:
     }
 };
 // =======================================================
-// STEP 4 — MAIN + DOCTEST (FINAL)
+// STEP 4 â€” MAIN + DOCTEST (FINAL)
 // =======================================================
 
 #ifdef RUN_TESTS
@@ -571,7 +558,6 @@ public:
 
 TEST_CASE("Base class constructor initializes correctly") {
     Activity a("Warmup", 30, EASY);
-
     CHECK(a.getName() == "Warmup");
     CHECK(a.getDuration() == 30);
     CHECK(a.getDifficulty() == EASY);
@@ -606,15 +592,17 @@ TEST_CASE("Derived class TrainingSession initializes correctly") {
     CHECK(ts.getReps() == 6);
 }
 
-TEST_CASE("Polymorphism: base pointer calls derived print()") {
+TEST_CASE("Polymorphism: derived print is called via base pointer") {
     Location loc("Gym B", true);
     Activity* a = new ClimbSession("Bouldering", 60, EASY, 1.5, loc);
 
     CHECK(a->getName() == "Bouldering");
+    CHECK(a->getDuration() == 60);
     CHECK(a->getDifficulty() == EASY);
 
     delete a;
 }
+
 
 TEST_CASE("Tracker adds sessions correctly") {
     ClimbingTracker tracker;
@@ -627,6 +615,28 @@ TEST_CASE("Tracker adds sessions correctly") {
     );
 
     CHECK(tracker.getActivityCount() == 1);
+}
+TEST_CASE("Activity setters update fields correctly") {
+    Activity a;
+
+    a.setName("Cooldown");
+    a.setDuration(15);
+    a.setDifficulty(MODERATE);
+
+    CHECK(a.getName() == "Cooldown");
+    CHECK(a.getDuration() == 15);
+    CHECK(a.getDifficulty() == MODERATE);
+}
+TEST_CASE("Derived class setters work correctly") {
+    Location loc("Gym C", true);
+    ClimbSession cs("Bouldering", 60, EASY, 1.0, loc);
+
+    cs.setHours(2.0);
+    Location newLoc("Crag Z", false);
+    cs.setLocation(newLoc);
+
+    CHECK(cs.getHours() == doctest::Approx(2.0));
+    CHECK(cs.getLocation().isIndoor() == false);
 }
 
 #else
@@ -669,10 +679,9 @@ int main() {
         cout << "1. Add Climb Session\n";
         cout << "2. Add Training Session\n";
         cout << "3. View Activities\n";
-        cout << "4. View Summary Report\n";
-        cout << "5. Save Report\n";
-        cout << "6. Load Report\n";
-        cout << "7. Exit\n";
+        cout << "4. View Summary Report and save to file\n";
+        cout << "5. Load report\n";
+        cout << "6. Exit\n";
         cout << "Choice: ";
         cin >> choice;
 
@@ -696,10 +705,10 @@ int main() {
             tracker.saveToFile();
             break;
 
-        case 6:
+        case 5:
             tracker.loadFromFile();
             break;
-        case 7:
+        case 6:
             cout << "Goodbye!\n";
             break;
         default:
@@ -709,7 +718,7 @@ int main() {
 
         }
 
-    } while (choice != 7);
+    } while (choice != 6);
 
     return 0;
 }

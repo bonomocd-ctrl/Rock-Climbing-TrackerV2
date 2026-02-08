@@ -15,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <None Include="ClassDiagram.cd" />
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="Rock-Climbing-TrackerV2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
