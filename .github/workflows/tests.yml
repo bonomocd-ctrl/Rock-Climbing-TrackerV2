@@ -40,7 +40,8 @@ jobs:
       shell: powershell
       run: |
         Set-Location "$env:GITHUB_WORKSPACE\build"
-        ./Rock-Climbing-TrackerV2.exe
+        Get-ChildItem
+        .\Rock-Climbing-TrackerV2.exe
 
 
 
