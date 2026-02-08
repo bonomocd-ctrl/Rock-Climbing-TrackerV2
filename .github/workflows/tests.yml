@@ -37,9 +37,12 @@ jobs:
         popd
 
     # Step 4: Run the compiled tests
+    # Step 4: Run the compiled tests
     - name: Run tests
       shell: cmd
       run: |
-        REM Run the Rock-Climbing-TrackerV2.exe from the build directory
-        "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+        pushd "%GITHUB_WORKSPACE%\build"
+        Rock-Climbing-TrackerV2.exe
+        popd
+
 
