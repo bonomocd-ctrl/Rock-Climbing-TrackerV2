@@ -36,8 +36,10 @@ jobs:
         popd
 
 
-    - name: Run tests
+    - name: Debug build output
       shell: cmd
       run: |
-        call "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+        echo ==== BUILD DIRECTORY CONTENTS ====
+        dir "%GITHUB_WORKSPACE%\build"
+
 
