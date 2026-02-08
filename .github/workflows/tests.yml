@@ -36,14 +36,11 @@ jobs:
         REM Return to the original directory
         popd
 
-    # Step 4: Run the compiled tests
-    # Step 4: Run the compiled tests
     - name: Run tests
-      shell: cmd
+      shell: powershell
       run: |
-        pushd "%GITHUB_WORKSPACE%\build"
-        .\Rock-Climbing-TrackerV2.exe
-        popd
+        Set-Location "$env:GITHUB_WORKSPACE\build"
+        ./Rock-Climbing-TrackerV2.exe
 
 
 
