@@ -26,7 +26,7 @@ jobs:
 
         REM Compile the project with doctest enabled
         cl /nologo /EHsc /std:c++17 /D RUN_TESTS ^
-           "%GITHUB_WORKSPACE%\Rock-Climbing-Tracker.cpp" ^
+           "%GITHUB_WORKSPACE%\src\Rock-Climbing-TrackerV2.cpp" ^
            /Fe:Rock-Climbing-TrackerV2.exe
 
         REM Show build output for debugging
@@ -34,6 +34,7 @@ jobs:
 
         REM Return to repo root
         popd
+
 
     - name: Run tests
       shell: cmd
