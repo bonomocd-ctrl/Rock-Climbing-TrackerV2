@@ -42,3 +42,4 @@ jobs:
       run: |
         REM Run the Rock-Climbing-TrackerV2.exe from the build directory
         "%GITHUB_WORKSPACE%\build\Rock-Climbing-TrackerV2.exe"
+
