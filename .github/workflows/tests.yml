@@ -42,7 +42,8 @@ jobs:
       shell: cmd
       run: |
         pushd "%GITHUB_WORKSPACE%\build"
-        Rock-Climbing-TrackerV2.exe
+        .\Rock-Climbing-TrackerV2.exe
         popd
+
 
 
