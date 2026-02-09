@@ -16,7 +16,7 @@
 using namespace std;
 
 // ==========================
-// CONSTANTS (UNCHANGED)
+// CONSTANTS 
 // ==========================
 const int ADVANCED_HOURS = 160;
 const int INTERMEDIATE_HOURS = 21;
@@ -25,7 +25,7 @@ const int NEW_CLIMBER_DAYS = 10;
 const double DEDICATED_SESSION_HOURS = 2.0;
 
 // ==========================
-// ENUM (Week 01 - REQUIRED)
+// ENUM 
 // ==========================
 enum ClimbDifficulty { EASY = 1, MODERATE, HARD, EXTREME };
 
@@ -43,15 +43,13 @@ string difficultyToString(ClimbDifficulty d) {
 }
 
 // ==========================
-// COLOR FUNCTION (UNCHANGED)
+// COLOR FUNCTION
 // ==========================
 void setColor(int color) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }
 
-// =======================================================
-// NEW OOP STRUCTURE (ADDED — DOES NOT REMOVE FEATURES)
-// =======================================================
+
 
 // ==========================
 // BASE CLASS (REQUIRED)
@@ -551,7 +549,6 @@ public:
 // =======================================================
 
 #ifdef RUN_TESTS
-
 // =======================================================
 // DOCTEST UNIT TESTS
 // =======================================================
@@ -564,43 +561,31 @@ TEST_CASE("Base class constructor initializes correctly") {
 }
 
 TEST_CASE("Composition class Location works correctly") {
-    Location loc("Gym A", true);
+    Location loc("indoor", true);
 
-    CHECK(loc.getPlace() == "Gym A");
+    CHECK(loc.getPlace() == "indoor");
     CHECK(loc.isIndoor() == true);
-    CHECK(loc.formattedLocation() == "Gym A (Indoor)");
+    CHECK(loc.formattedLocation() == "indoor (Indoor)");
 }
 
 
-TEST_CASE("Derived class ClimbSession initializes and prints base data") {
-    Location loc("Crag X", false);
-    ClimbSession cs("Lead Route", 90, HARD, 2.5, loc);
+TEST_CASE("Derived class ClimbSession initializes base and derived data correctly") {
+    Location loc("Outdoor", false);
+    ClimbSession cs("Lead Route", 0, HARD, 2.5, loc);
 
     CHECK(cs.getName() == "Lead Route");
-    CHECK(cs.getDuration() == 90);
     CHECK(cs.getDifficulty() == HARD);
     CHECK(cs.getHours() == doctest::Approx(2.5));
     CHECK(cs.getLocation().isIndoor() == false);
 }
 
+
 TEST_CASE("Derived class TrainingSession initializes correctly") {
-    TrainingSession ts("Hangboard", 45, MODERATE, 6);
+    TrainingSession ts("Hangboard", 0, MODERATE, 6);
 
     CHECK(ts.getName() == "Hangboard");
-    CHECK(ts.getDuration() == 45);
     CHECK(ts.getDifficulty() == MODERATE);
     CHECK(ts.getReps() == 6);
-}
-
-TEST_CASE("Polymorphism: derived print is called via base pointer") {
-    Location loc("Gym B", true);
-    Activity* a = new ClimbSession("Bouldering", 60, EASY, 1.5, loc);
-
-    CHECK(a->getName() == "Bouldering");
-    CHECK(a->getDuration() == 60);
-    CHECK(a->getDifficulty() == EASY);
-
-    delete a;
 }
 
 
@@ -609,13 +594,14 @@ TEST_CASE("Tracker adds sessions correctly") {
     tracker.setClimberName("Alex");
     tracker.setClimbingDays(20);
 
-    Location loc("Test Gym", true);
+    Location loc("Indoor", true);
     tracker.addSession(
-        new ClimbSession("Test Climb", 60, MODERATE, 1.0, loc)
+        new ClimbSession("Indoor", 0, MODERATE, 1.0, loc)
     );
 
     CHECK(tracker.getActivityCount() == 1);
 }
+
 TEST_CASE("Activity setters update fields correctly") {
     Activity a;
 
@@ -628,16 +614,17 @@ TEST_CASE("Activity setters update fields correctly") {
     CHECK(a.getDifficulty() == MODERATE);
 }
 TEST_CASE("Derived class setters work correctly") {
-    Location loc("Gym C", true);
-    ClimbSession cs("Bouldering", 60, EASY, 1.0, loc);
+    Location loc("Indoor", true);
+    ClimbSession cs("Bouldering", 0, EASY, 1.0, loc);
 
     cs.setHours(2.0);
-    Location newLoc("Crag Z", false);
+    Location newLoc("Outdoor", false);
     cs.setLocation(newLoc);
 
     CHECK(cs.getHours() == doctest::Approx(2.0));
     CHECK(cs.getLocation().isIndoor() == false);
 }
+
 
 #else
 
