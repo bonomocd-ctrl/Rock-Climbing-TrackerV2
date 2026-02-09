@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="Activity">
+    <Position X="7.75" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAIAIBAAAAIRAAAAAAAAAAAAAEAABCAAAEAEAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Location">
+    <Position X="14.5" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgIAAAAAIAAEQAAAAAIAAAAAAAAAQAgAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ClimbSession">
+    <Position X="6.25" Y="4.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAYAABAAAAAAAAAAAAAAAAACADAAAQAAAAAABAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TrainingSession">
+    <Position X="10" Y="4.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAABAAAAEAEAAAEAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ClimbingTracker">
+    <Position X="12.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAAAAJAQBCAAAAAIBAgACAAkAAABAAAAACAQAAAAAAI=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Enum Name="ClimbDifficulty">
+    <Position X="14" Y="3.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAEAAAIAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
