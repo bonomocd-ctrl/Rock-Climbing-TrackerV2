@@ -69,9 +69,10 @@ public:
         : name(n), duration(d), difficulty(diff) {
     }
 
+    // ✅ REQUIRED virtual destructor
     virtual ~Activity() {}
 
-    // ===== SETTERS (ADDED) =====
+    // ===== SETTERS =====
     void setName(const string& n) { name = n; }
     void setDuration(int d) { duration = d; }
     void setDifficulty(ClimbDifficulty diff) { difficulty = diff; }
@@ -81,12 +82,17 @@ public:
     int getDuration() const { return duration; }
     ClimbDifficulty getDifficulty() const { return difficulty; }
 
+    // ✅ PURE VIRTUAL FUNCTION (NEW)
+    virtual string getType() const = 0;
+
+    // keep print virtual
     virtual void print() const {
         cout << "Name: " << name << endl;
         cout << "Duration: " << duration << " minutes" << endl;
         cout << "Difficulty: " << difficultyToString(difficulty) << endl;
     }
 };
+
 
 
 // ==========================
@@ -127,11 +133,14 @@ public:
         : Activity(n, d, diff), hours(h), location(loc) {
     }
 
-    // ===== SETTERS (ADDED) =====
+    // ✅ PURE VIRTUAL IMPLEMENTATION
+    string getType() const override {
+        return "Climb Session";
+    }
+
     void setHours(double h) { hours = h; }
     void setLocation(const Location& loc) { location = loc; }
 
-    // ===== GETTERS =====
     double getHours() const { return hours; }
     Location getLocation() const { return location; }
 
@@ -141,6 +150,7 @@ public:
         cout << "Location: " << location.formattedLocation() << endl;
     }
 };
+
 
 
 
@@ -156,10 +166,12 @@ public:
         : Activity(n, d, diff), reps(r) {
     }
 
-    // ===== SETTER (ADDED) =====
-    void setReps(int r) { reps = r; }
+    // ✅ PURE VIRTUAL IMPLEMENTATION
+    string getType() const override {
+        return "Training Session";
+    }
 
-    // ===== GETTER =====
+    void setReps(int r) { reps = r; }
     int getReps() const { return reps; }
 
     void print() const override {
@@ -167,7 +179,6 @@ public:
         cout << "Reps: " << reps << endl;
     }
 };
-
 
 
 // ==========================
@@ -306,6 +317,66 @@ string loadReport(const string& filename) {
     }
     return content;
 }
+class ActivityManager {
+private:
+    Activity** items;
+    int size;
+    int capacity;
+
+    void resize() {
+        int newCapacity = capacity * 2;
+        Activity** newArray = new Activity * [newCapacity];
+
+        for (int i = 0; i < size; i++) {
+            newArray[i] = items[i];
+        }
+
+        delete[] items;
+        items = newArray;
+        capacity = newCapacity;
+    }
+
+public:
+    ActivityManager(int cap = 5)
+        : size(0), capacity(cap) {
+        items = new Activity * [capacity];
+    }
+
+    ~ActivityManager() {
+        for (int i = 0; i < size; i++) {
+            delete items[i];
+        }
+        delete[] items;
+    }
+
+    void add(Activity* a) {
+        if (size == capacity) {
+            resize();
+        }
+        items[size++] = a;
+    }
+
+    void remove(int index) {
+        if (index < 0 || index >= size) return;
+
+        delete items[index];
+
+        for (int i = index; i < size - 1; i++) {
+            items[i] = items[i + 1];
+        }
+
+        size--;
+    }
+
+    Activity* get(int index) const {
+        if (index < 0 || index >= size) return nullptr;
+        return items[index];
+    }
+
+    int getSize() const {
+        return size;
+    }
+};
 
 
 
@@ -323,26 +394,16 @@ private:
     int totalHours;
     int climbingDays;
 
-    // POLYMORPHISM: base-class pointers
-    Activity* activities[100] = { 0 };
-
-    int activityCount;
+    ActivityManager manager;
 
 public:
     ClimbingTracker()
         : climberName(""),
         totalHours(0),
-        climbingDays(0),
-        activityCount(0) {
+        climbingDays(0) {
     }
 
-    ~ClimbingTracker() {
-        for (int i = 0; i < activityCount; i++) {
-            if (activities[i] != 0) {
-                delete activities[i];
-            }
-        }
-    }
+    // ❌ REMOVE destructor (manager already deletes memory)
 
     // ==========================
     // SETUP
@@ -354,30 +415,22 @@ public:
     void setClimbingDays(int days) {
         climbingDays = days;
     }
+
     // ==========================
-    // DOCTEST SUPPORT METHODS
+    // DOCTEST SUPPORT
     // ==========================
     void addSession(Activity* activity) {
-        if (activityCount < 100 && activity != 0) {
-            activities[activityCount++] = activity;
-        }
+        manager.add(activity);
     }
 
     int getActivityCount() const {
-        return activityCount;
+        return manager.getSize();
     }
 
     // ==========================
     // ADD CLIMB SESSION
     // ==========================
     void addClimbSession() {
-        if (activityCount >= 100) {
-            setColor(12);
-            cout << "Maximum number of activities reached.\n";
-            setColor(7);
-
-            return;
-        }
 
         cin.ignore(1000, '\n');
 
@@ -392,69 +445,67 @@ public:
         double hours = getValidatedDouble(
             "Hours climbed this session: ", 0.1, 24.0);
 
-        Location loc("", indoor);
+        Location loc(name, indoor);
 
-        activities[activityCount++] =
-            new ClimbSession(name, 0, diff, hours, loc);
+        manager.add(new ClimbSession(name, 0, diff, hours, loc));
 
         totalHours += static_cast<int>(hours);
 
-        setColor(10); // Green
+        setColor(10);
         cout << "Climb session added.\n";
         setColor(7);
-
     }
-
 
     // ==========================
     // ADD TRAINING SESSION
     // ==========================
     void addTrainingSession() {
-        if (activityCount >= 100) {
-            cout << "Maximum number of activities reached.\n";
-            return;
-        }
+
+        cin.ignore(1000, '\n');
 
         string name;
-        cout << "Enter style of training: ";
-        cin.ignore(1000, '\n');
+        cout << "Enter training name: ";
         getline(cin, name);
-
-        int duration = getValidatedInt(
-            "Enter duration (hours): ", 1, 24);
 
         ClimbDifficulty diff = promptDifficulty();
 
-        int reps = getValidatedInt(
-            "Enter number of reps: ", 1, 1000);
+        int reps = getValidatedInt("Enter reps: ", 1, 100);
 
-        activities[activityCount] =
-            new TrainingSession(name, duration, diff, reps);
-        activityCount++;
-
-        totalHours += duration;
+        manager.add(new TrainingSession(name, 0, diff, reps));
 
         setColor(10);
         cout << "Training session added.\n";
         setColor(7);
-
     }
 
     // ==========================
     // DISPLAY ALL ACTIVITIES
     // ==========================
     void displayActivities() {
-        if (activityCount == 0) {
+
+        if (manager.getSize() == 0) {
             cout << "No activities recorded.\n";
             return;
         }
 
-        for (int i = 0; i < activityCount; i++) {
+        for (int i = 0; i < manager.getSize(); i++) {
             cout << "-----------------------------\n";
-            activities[i]->print();   // ✅ virtual dispatch
+            manager.get(i)->print();
         }
     }
 
+    // ==========================
+    // REMOVE ACTIVITY
+    // ==========================
+    void removeActivity(int index) {
+        manager.remove(index);
+    }
+
+    int getManagerSize() const {
+        return manager.getSize();
+    }
+
+    // ====== (rest of your report functions stay unchanged)
 
 
     // ==========================
@@ -624,6 +675,32 @@ TEST_CASE("Derived class setters work correctly") {
     CHECK(cs.getHours() == doctest::Approx(2.0));
     CHECK(cs.getLocation().isIndoor() == false);
 }
+TEST_CASE("Manager adds and removes activities") {
+    ActivityManager mgr;
+
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 1, MODERATE, 5));
+
+    CHECK(mgr.getSize() == 2);
+
+    mgr.remove(0);
+
+    CHECK(mgr.getSize() == 1);
+}
+TEST_CASE("Polymorphic getType works") {
+    Location loc("Gym", true);
+
+    Activity* a1 = new ClimbSession("Route", 0, EASY, 1.0, loc);
+    Activity* a2 = new TrainingSession("Hangboard", 1, HARD, 5);
+
+    CHECK(a1->getType() == "Climb Session");
+    CHECK(a2->getType() == "Training Session");
+
+    delete a1;
+    delete a2;
+}
 
 
 #else
@@ -669,6 +746,7 @@ int main() {
         cout << "4. View Summary Report and save to file\n";
         cout << "5. Load report\n";
         cout << "6. Exit\n";
+        cout << "7. Delete Activity\n";
         cout << "Choice: ";
         cin >> choice;
 
@@ -698,6 +776,21 @@ int main() {
         case 6:
             cout << "Goodbye!\n";
             break;
+        case 7:
+        {
+            int index = getValidatedInt(
+                "Enter index to delete: ",
+                0,
+                tracker.getManagerSize() - 1
+            );
+
+            tracker.removeActivity(index);
+
+            cout << "Deleted.\n";
+            break;
+        }
+
+
         default:
             setColor(12); // Red
             cout << "Invalid choice.\n";
