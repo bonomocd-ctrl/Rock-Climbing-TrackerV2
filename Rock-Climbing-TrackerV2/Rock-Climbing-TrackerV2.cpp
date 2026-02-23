@@ -1,9 +1,50 @@
-﻿
-// DOCTEST CONFIG (CI ONLY)
-#ifdef RUN_TESTS
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+﻿// ==========================
+// DOCTEST + MAIN (TOP OF FILE)
+// ==========================
+#define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
+
+#ifdef _DEBUG
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#include <stdlib.h>
+#include <iostream>
 #endif
+
+// Forward declare the interactive runner
+int runInteractive();
+
+int main(int argc, char** argv) {
+#ifdef _DEBUG
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
+    _CrtMemState before{}, after{}, diff{};
+    _CrtMemCheckpoint(&before);
+
+    int result = 0;
+    {
+        doctest::Context context(argc, argv);
+        result = context.run();
+    }
+
+    _CrtMemCheckpoint(&after);
+
+    if (_CrtMemDifference(&diff, &before, &after)) {
+        std::cerr << "\nREAL leak(s) detected in YOUR code during test run:\n";
+        _CrtMemDumpStatistics(&diff);
+        // Optional detail:
+        // _CrtMemDumpAllObjectsSince(&before);
+    }
+    else {
+        std::cerr << "No memory leaks detected in YOUR code during test run.\n";
+    }
+
+    return result;
+#else
+    // Release build: run the menu program
+    (void)argc; (void)argv;
+    return runInteractive();
+#endif
+}
 // ==========================
 // HEADERS
 // ==========================
@@ -69,7 +110,7 @@ public:
         : name(n), duration(d), difficulty(diff) {
     }
 
-    // ✅ REQUIRED virtual destructor
+    // NEW REQUIRED virtual destructor
     virtual ~Activity() {}
 
     // ===== SETTERS =====
@@ -82,7 +123,7 @@ public:
     int getDuration() const { return duration; }
     ClimbDifficulty getDifficulty() const { return difficulty; }
 
-    // ✅ PURE VIRTUAL FUNCTION (NEW)
+    // NEW PURE VIRTUAL FUNCTION
     virtual string getType() const = 0;
 
     // keep print virtual
@@ -91,6 +132,13 @@ public:
         cout << "Duration: " << duration << " minutes" << endl;
         cout << "Difficulty: " << difficultyToString(difficulty) << endl;
     }
+    // ===== STREAM SUPPORT (for operator<< polymorphism) ===== NEW
+    virtual void toStream(ostream& os) const {
+        os << name << " | "
+            << duration << " mins | "
+            << difficultyToString(difficulty);
+    }
+    virtual Activity* clone() const = 0;
 };
 
 
@@ -132,8 +180,22 @@ public:
         double h, Location loc)
         : Activity(n, d, diff), hours(h), location(loc) {
     }
+    // ===== OPERATOR== (identity comparison) =====
+    bool operator==(const ClimbSession& other) const {
+        return name == other.name &&
+            hours == other.hours &&
+            location.getPlace() == other.location.getPlace() &&
+            location.isIndoor() == other.location.isIndoor();
+    }
 
-    // ✅ PURE VIRTUAL IMPLEMENTATION
+    // ===== STREAM OVERRIDE ===== NEW
+    void toStream(ostream& os) const override {
+        os << "[Climb] "
+            << name << " | "
+            << hours << " hrs | "
+            << location.formattedLocation();
+    }
+    //  PURE VIRTUAL IMPLEMENTATION
     string getType() const override {
         return "Climb Session";
     }
@@ -148,6 +210,9 @@ public:
         Activity::print();
         cout << "Hours Climbed: " << hours << endl;
         cout << "Location: " << location.formattedLocation() << endl;
+    }
+    Activity* clone() const override {
+        return new ClimbSession(*this);
     }
 };
 
@@ -166,11 +231,16 @@ public:
         : Activity(n, d, diff), reps(r) {
     }
 
-    // ✅ PURE VIRTUAL IMPLEMENTATION
+    //  PURE VIRTUAL IMPLEMENTATION
     string getType() const override {
         return "Training Session";
     }
-
+    // ===== STREAM OVERRIDE ===== NEW
+    void toStream(ostream& os) const override {
+        os << "[Training] "
+            << name << " | "
+            << reps << " reps";
+    }
     void setReps(int r) { reps = r; }
     int getReps() const { return reps; }
 
@@ -178,9 +248,16 @@ public:
         Activity::print();
         cout << "Reps: " << reps << endl;
     }
+    Activity* clone() const override {
+        return new TrainingSession(*this);
+    }
 };
 
-
+// ===== GLOBAL STREAM OPERATOR =====
+ostream& operator<<(ostream& os, const Activity& a) {
+    a.toStream(os);   // polymorphic call
+    return os;
+}
 // ==========================
 // BANNER
 // ==========================
@@ -317,158 +394,240 @@ string loadReport(const string& filename) {
     }
     return content;
 }
-class ActivityManager {
+// ===== DYNAMIC ARRAY TEMPLATE (FINAL - NO LEAKS, NO SHALLOW COPIES) =====
+template <typename T>
+class DynamicArray {
 private:
-    Activity** items;
-    int size;
+    T* arr;
     int capacity;
+    int size;
 
-    void resize() {
-        int newCapacity = capacity * 2;
-        Activity** newArray = new Activity * [newCapacity];
+    // resize helper
+    void resize(int newCapacity) {
+        T* newArr = new T[newCapacity];
 
-        for (int i = 0; i < size; i++) {
-            newArray[i] = items[i];
-        }
+        for (int i = 0; i < size; i++)
+            newArr[i] = arr[i];
 
-        delete[] items;
-        items = newArray;
+        delete[] arr;
+        arr = newArr;
         capacity = newCapacity;
     }
 
 public:
-    ActivityManager(int cap = 5)
-        : size(0), capacity(cap) {
-        items = new Activity * [capacity];
+    // ==========================
+    // CONSTRUCTOR
+    // ==========================
+    DynamicArray(int cap = 5)
+        : capacity(cap), size(0) {
+        arr = new T[capacity];
     }
 
-    ~ActivityManager() {
-        for (int i = 0; i < size; i++) {
-            delete items[i];
-        }
-        delete[] items;
+    // ==========================
+    // 🚫 DISABLE COPYING
+    // ==========================
+    // Prevents shallow copy of pointers (CRITICAL for your assignment)
+    DynamicArray(const DynamicArray&) = delete;
+    DynamicArray& operator=(const DynamicArray&) = delete;
+
+    // ==========================
+    // DESTRUCTOR
+    // ==========================
+    ~DynamicArray() {
+        delete[] arr;
     }
 
-    void add(Activity* a) {
-        if (size == capacity) {
-            resize();
-        }
-        items[size++] = a;
+    // ==========================
+    // ADD ELEMENT
+    // ==========================
+    void add(const T& value) {
+        if (size == capacity)
+            resize(capacity * 2);
+
+        arr[size++] = value;
     }
 
+    // ==========================
+    // REMOVE ELEMENT
+    // ==========================
     void remove(int index) {
-        if (index < 0 || index >= size) return;
+        if (index < 0 || index >= size)
+            return;
 
-        delete items[index];
-
-        for (int i = index; i < size - 1; i++) {
-            items[i] = items[i + 1];
-        }
+        for (int i = index; i < size - 1; i++)
+            arr[i] = arr[i + 1];
 
         size--;
     }
 
-    Activity* get(int index) const {
-        if (index < 0 || index >= size) return nullptr;
-        return items[index];
+    // ==========================
+    // INDEXING
+    // ==========================
+    T& operator[](int index) {
+        return arr[index];
     }
 
+    const T& operator[](int index) const {
+        return arr[index];
+    }
+
+    // ==========================
+    // SIZE ACCESSOR
+    // ==========================
     int getSize() const {
         return size;
     }
 };
+//MANAGER CLASS 
+class ActivityManager {
+private:
+    DynamicArray<Activity*> items;
 
+public:
+    // Constructor
+    ActivityManager(int cap = 5) : items(cap) {}
+    // ================= COPY CONSTRUCTOR (STEP 3) =================
+    ActivityManager(const ActivityManager& other) : items(other.getSize()) {
+        for (int i = 0; i < other.items.getSize(); i++) {
+            items.add(other.items[i]->clone());
+        }
+    }
 
+    // ================= COPY ASSIGNMENT (STEP 4) =================
+    ActivityManager& operator=(const ActivityManager& other) {
+        if (this != &other) {
+            clear();  // delete current owned memory
 
-// =======================================================
-// STEP 3 — TRACKER CLASS + POLYMORPHIC STORAGE
-// (Original logic preserved, upgraded to OOP)
-// =======================================================
+            for (int i = 0; i < other.items.getSize(); i++) {
+                items.add(other.items[i]->clone());
+            }
+        }
+        return *this;
+    }
+    // Destructor (prevents ALL memory leaks)
+    ~ActivityManager() {
+        clear();
+    }
 
-// ==========================
-// TRACKER CLASS
-// ==========================
+    // Add a new activity (takes ownership of pointer)
+    void add(Activity* act) {
+        items.add(act);
+    }
+
+    // Remove activity at index (and delete memory)
+    void remove(int index) {
+        if (index < 0 || index >= items.getSize())
+            return;
+
+        delete items[index];   // free the object
+        items.remove(index);   // remove pointer from array
+    }
+
+    // Delete everything safely
+    void clear() {
+        while (items.getSize() > 0) {
+            delete items[0];   // delete first object
+            items.remove(0);   // remove it from array
+        }
+    }
+
+    // Accessors
+    int getSize() const {
+        return items.getSize();
+    }
+
+    Activity* get(int index) const {
+        if (index < 0 || index >= items.getSize())
+            return nullptr;
+        return items[index];
+    }
+    // operator[]
+    Activity* operator[](int index) const {
+        if (index < 0 || index >= items.getSize())
+            return nullptr;
+        return items[index];
+    }
+
+    // operator+= (add)
+    ActivityManager& operator+=(Activity* act) {
+        this->add(act);     // explicit this pointer usage 
+        return *this;
+    }
+
+    // operator-= (remove by index)
+    ActivityManager& operator-=(int index) {
+        remove(index);
+        return *this;
+    }
+    // Example report function
+    void displayAll() const {
+        for (int i = 0; i < items.getSize(); i++) {
+            if (items[i] != nullptr)
+                items[i]->print(); //correct polymorphic function
+        }
+    }
+};
+
 class ClimbingTracker {
 private:
     string climberName;
     int totalHours;
     int climbingDays;
-
-    ActivityManager manager;
+    ActivityManager manager;   // handles memory automatically
 
 public:
-    ClimbingTracker()
-        : climberName(""),
-        totalHours(0),
-        climbingDays(0) {
-    }
-
-    // ❌ REMOVE destructor (manager already deletes memory)
+    // ==========================
+    // CONSTRUCTOR / DESTRUCTOR
+    // ==========================
+    ClimbingTracker() : climberName(""), totalHours(0), climbingDays(0) {}
+    ~ClimbingTracker() = default; // manager cleans up Activities automatically
 
     // ==========================
-    // SETUP
+    // SETTERS
     // ==========================
-    void setClimberName(const string& name) {
-        climberName = name;
-    }
-
-    void setClimbingDays(int days) {
-        climbingDays = days;
-    }
+    void setClimberName(const string& name) { climberName = name; }
+    void setClimbingDays(int days) { climbingDays = days; }
 
     // ==========================
-    // DOCTEST SUPPORT
+    // NON-INTERACTIVE ADD (FOR TESTS)
     // ==========================
     void addSession(Activity* activity) {
-        manager.add(activity);
+        manager.add(activity);  // manager takes ownership
+        if (ClimbSession* cs = dynamic_cast<ClimbSession*>(activity))
+            totalHours += static_cast<int>(cs->getHours());
     }
 
-    int getActivityCount() const {
-        return manager.getSize();
-    }
+    int getActivityCount() const { return manager.getSize(); }
 
     // ==========================
-    // ADD CLIMB SESSION
+    // INTERACTIVE ADD CLIMB SESSION
     // ==========================
     void addClimbSession() {
-
         cin.ignore(1000, '\n');
-
         string name;
         cout << "Enter climbing style: ";
         getline(cin, name);
 
         bool indoor = getYesNo("Is this climb indoor or outdoor? (Y=Indoor, N=Outdoor)");
-
         ClimbDifficulty diff = promptDifficulty();
+        double hours = getValidatedDouble("Hours climbed this session: ", 0.1, 24.0);
 
-        double hours = getValidatedDouble(
-            "Hours climbed this session: ", 0.1, 24.0);
-
-        Location loc(name, indoor);
-
-        manager.add(new ClimbSession(name, 0, diff, hours, loc));
+        // Allocate and immediately give to manager
+        manager.add(new ClimbSession(name, 0, diff, hours, Location(name, indoor)));
 
         totalHours += static_cast<int>(hours);
-
-        setColor(10);
-        cout << "Climb session added.\n";
-        setColor(7);
     }
 
     // ==========================
-    // ADD TRAINING SESSION
+    // INTERACTIVE ADD TRAINING SESSION
     // ==========================
     void addTrainingSession() {
-
         cin.ignore(1000, '\n');
-
         string name;
         cout << "Enter training name: ";
         getline(cin, name);
 
         ClimbDifficulty diff = promptDifficulty();
-
         int reps = getValidatedInt("Enter reps: ", 1, 100);
 
         manager.add(new TrainingSession(name, 0, diff, reps));
@@ -479,10 +638,9 @@ public:
     }
 
     // ==========================
-    // DISPLAY ALL ACTIVITIES
+    // DISPLAY ACTIVITIES
     // ==========================
-    void displayActivities() {
-
+    void displayActivities() const {
         if (manager.getSize() == 0) {
             cout << "No activities recorded.\n";
             return;
@@ -497,26 +655,14 @@ public:
     // ==========================
     // REMOVE ACTIVITY
     // ==========================
-    void removeActivity(int index) {
-        manager.remove(index);
-    }
-
-    int getManagerSize() const {
-        return manager.getSize();
-    }
-
-    // ====== (rest of your report functions stay unchanged)
-
+    void removeActivity(int index) { manager.remove(index); }
+    int getManagerSize() const { return manager.getSize(); }
 
     // ==========================
     // REPORT GENERATION
     // ==========================
-
     void generateReport() const {
-        double avgHours =
-            (climbingDays > 0)
-            ? static_cast<double>(totalHours) / climbingDays
-            : 0.0;
+        double avgHours = (climbingDays > 0) ? static_cast<double>(totalHours) / climbingDays : 0.0;
 
         string level = determineExperienceLevel(totalHours);
         string frequency = determineClimberType(climbingDays);
@@ -531,22 +677,15 @@ public:
         cout << left << setw(25) << "Name:" << climberName << endl;
         cout << left << setw(25) << "Total Hours:" << totalHours << endl;
         cout << left << setw(25) << "Climbing Days:" << climbingDays << endl;
-
-        cout << left << setw(25)
-            << "Avg Hours / Session:"
-            << fixed << setprecision(1)
-            << avgHours << endl;
-
+        cout << left << setw(25) << "Avg Hours / Session:" << fixed << setprecision(1) << avgHours << endl;
         cout << left << setw(25) << "Experience Level:" << level << endl;
         cout << left << setw(25) << "Climber Type:" << frequency << endl;
         cout << left << setw(25) << "Performance Rating:" << rating << endl;
-
         cout << "=================================\n";
     }
 
-
     // ==========================
-    // SAVE REPORT
+    // SAVE / LOAD
     // ==========================
     void saveToFile() const {
         string filename;
@@ -559,32 +698,21 @@ public:
             return;
         }
 
-        double avgHours =
-            (climbingDays > 0)
-            ? static_cast<double>(totalHours) / climbingDays
-            : 0.0;
+        double avgHours = (climbingDays > 0) ? static_cast<double>(totalHours) / climbingDays : 0.0;
 
         outFile << "Name: " << climberName << "\n";
         outFile << "Total Hours: " << totalHours << "\n";
         outFile << "Climbing Days: " << climbingDays << "\n";
         outFile << fixed << setprecision(1);
         outFile << "Avg Hours / Session: " << avgHours << "\n";
-        outFile << "Experience Level: "
-            << determineExperienceLevel(totalHours) << "\n";
-        outFile << "Climber Type: "
-            << determineClimberType(climbingDays) << "\n";
-        outFile << "Performance Rating: "
-            << performanceRating(avgHours) << "\n";
+        outFile << "Experience Level: " << determineExperienceLevel(totalHours) << "\n";
+        outFile << "Climber Type: " << determineClimberType(climbingDays) << "\n";
+        outFile << "Performance Rating: " << performanceRating(avgHours) << "\n";
 
         outFile.close();
         cout << "Report saved to " << filename << endl;
     }
 
-
-
-    // ==========================
-    // LOAD REPORT
-    // ==========================
     void loadFromFile() const {
         string filename;
         cout << "Enter filename to load report: ";
@@ -594,18 +722,26 @@ public:
         cout << "\n----- LOADED REPORT -----\n";
         cout << report << endl;
     }
+
+    // ==========================
+    // UTILITY TEMPLATE
+    // ==========================
+    template <typename T>
+    T maxValue(T a, T b) {
+        return (a > b) ? a : b;
+    }
 };
 // =======================================================
 // STEP 4 — MAIN + DOCTEST (FINAL)
 // =======================================================
 
-#ifdef RUN_TESTS
+#ifdef _DEBUG
 // =======================================================
-// DOCTEST UNIT TESTS
+// DOCTEST UNIT TESTS 
 // =======================================================
 
 TEST_CASE("Base class constructor initializes correctly") {
-    Activity a("Warmup", 30, EASY);
+    ClimbSession a("Warmup", 30, EASY, 1.0, Location("Gym", true));
     CHECK(a.getName() == "Warmup");
     CHECK(a.getDuration() == 30);
     CHECK(a.getDifficulty() == EASY);
@@ -619,7 +755,6 @@ TEST_CASE("Composition class Location works correctly") {
     CHECK(loc.formattedLocation() == "indoor (Indoor)");
 }
 
-
 TEST_CASE("Derived class ClimbSession initializes base and derived data correctly") {
     Location loc("Outdoor", false);
     ClimbSession cs("Lead Route", 0, HARD, 2.5, loc);
@@ -630,7 +765,6 @@ TEST_CASE("Derived class ClimbSession initializes base and derived data correctl
     CHECK(cs.getLocation().isIndoor() == false);
 }
 
-
 TEST_CASE("Derived class TrainingSession initializes correctly") {
     TrainingSession ts("Hangboard", 0, MODERATE, 6);
 
@@ -639,31 +773,36 @@ TEST_CASE("Derived class TrainingSession initializes correctly") {
     CHECK(ts.getReps() == 6);
 }
 
-
 TEST_CASE("Tracker adds sessions correctly") {
     ClimbingTracker tracker;
     tracker.setClimberName("Alex");
     tracker.setClimbingDays(20);
 
     Location loc("Indoor", true);
+
     tracker.addSession(
         new ClimbSession("Indoor", 0, MODERATE, 1.0, loc)
     );
 
     CHECK(tracker.getActivityCount() == 1);
+
+    
+    tracker.removeActivity(0);
 }
 
-TEST_CASE("Activity setters update fields correctly") {
-    Activity a;
+TEST_CASE("Activity setters update fields correctly (via derived class)") {
+    Location loc("Gym", true);
+    ClimbSession cs("Temp", 10, EASY, 1.0, loc);
 
-    a.setName("Cooldown");
-    a.setDuration(15);
-    a.setDifficulty(MODERATE);
+    cs.setName("Cooldown");
+    cs.setDuration(15);
+    cs.setDifficulty(MODERATE);
 
-    CHECK(a.getName() == "Cooldown");
-    CHECK(a.getDuration() == 15);
-    CHECK(a.getDifficulty() == MODERATE);
+    CHECK(cs.getName() == "Cooldown");
+    CHECK(cs.getDuration() == 15);
+    CHECK(cs.getDifficulty() == MODERATE);
 }
+
 TEST_CASE("Derived class setters work correctly") {
     Location loc("Indoor", true);
     ClimbSession cs("Bouldering", 0, EASY, 1.0, loc);
@@ -675,10 +814,12 @@ TEST_CASE("Derived class setters work correctly") {
     CHECK(cs.getHours() == doctest::Approx(2.0));
     CHECK(cs.getLocation().isIndoor() == false);
 }
+
+// ===== MANAGER TESTS (LEAK-FREE) =====
 TEST_CASE("Manager adds and removes activities") {
     ActivityManager mgr;
 
-    Location loc("Gym", true);
+    Location loc("Inside", true);
 
     mgr.add(new ClimbSession("Route", 0, EASY, 1.0, loc));
     mgr.add(new TrainingSession("Hangboard", 1, MODERATE, 5));
@@ -686,11 +827,14 @@ TEST_CASE("Manager adds and removes activities") {
     CHECK(mgr.getSize() == 2);
 
     mgr.remove(0);
-
     CHECK(mgr.getSize() == 1);
+
+   
+    mgr.clear();
 }
+
 TEST_CASE("Polymorphic getType works") {
-    Location loc("Gym", true);
+    Location loc("Inside", true);
 
     Activity* a1 = new ClimbSession("Route", 0, EASY, 1.0, loc);
     Activity* a2 = new TrainingSession("Hangboard", 1, HARD, 5);
@@ -702,14 +846,118 @@ TEST_CASE("Polymorphic getType works") {
     delete a2;
 }
 
+TEST_CASE("ClimbSession equality works") {
+    Location loc("Gym", true);
 
+    ClimbSession a("Route", 0, EASY, 1.0, loc);
+    ClimbSession b("Route", 0, EASY, 1.0, loc);
+    ClimbSession c("Different", 0, EASY, 1.0, loc);
+
+    CHECK(a == b);
+    CHECK_FALSE(a == c);
+}
+
+TEST_CASE("operator<< outputs correct string") {
+    Location loc("Gym", true);
+    ClimbSession cs("Route", 0, EASY, 1.5, loc);
+
+    std::ostringstream out;
+    out << cs;
+
+    CHECK(out.str().find("Route") != std::string::npos);
+}
+
+TEST_CASE("Manager operator[] valid index returns correct item") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr += new ClimbSession("A", 0, EASY, 1.0, loc);
+
+    CHECK(mgr[0] != nullptr);
+
+    mgr.clear();
+}
+
+TEST_CASE("Manager operator[] invalid index returns nullptr") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr += new ClimbSession("A", 0, EASY, 1.0, loc);
+
+    CHECK(mgr[5] == nullptr);
+    CHECK(mgr[-1] == nullptr);
+
+    mgr.clear();
+}
+
+TEST_CASE("Manager += and -= works") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr += new ClimbSession("A", 0, EASY, 1.0, loc);
+    mgr += new TrainingSession("B", 0, MODERATE, 5);
+
+    CHECK(mgr.getSize() == 2);
+
+    mgr -= 0;
+
+    CHECK(mgr.getSize() == 1);
+
+
+    mgr.clear();
+}
+
+TEST_CASE("Function template maxValue works") {
+    ClimbingTracker tracker;
+
+    CHECK(tracker.maxValue(5, 10) == 10);
+    CHECK(tracker.maxValue(2.5, 1.1) == doctest::Approx(2.5));
+}
+
+TEST_CASE("DynamicArray template works") {
+    DynamicArray<int> arr;
+
+    arr.add(1);
+    arr.add(2);
+
+    CHECK(arr.getSize() == 2);
+
+    arr.remove(0);
+    CHECK(arr.getSize() == 1);
+}
+TEST_CASE("DynamicArray resizes when capacity exceeded") {
+    DynamicArray<int> arr(2); // small capacity to force resize fast
+
+    arr.add(10);
+    arr.add(20);
+    arr.add(30); // should trigger resize
+
+    CHECK(arr.getSize() == 3);
+    CHECK(arr[0] == 10);
+    CHECK(arr[1] == 20);
+    CHECK(arr[2] == 30);
+
+    arr.remove(1); // remove middle, should shift
+    CHECK(arr.getSize() == 2);
+    CHECK(arr[0] == 10);
+    CHECK(arr[1] == 30);
+}
+TEST_CASE("operator<< outputs correct string for TrainingSession") {
+    TrainingSession ts("Hangboard", 0, HARD, 12);
+
+    std::ostringstream out;
+    out << ts;
+
+    // should include key identity fields from TrainingSession::toStream
+    CHECK(out.str().find("Hangboard") != std::string::npos);
+    CHECK(out.str().find("12") != std::string::npos);
+}
 #else
-
 // =======================================================
 // INTERACTIVE MAIN (NOT USED IN CI)
 // =======================================================
 
-int main() {
+int runInteractive() {
     ClimbingTracker tracker;
 
     displayBanner();
@@ -799,7 +1047,6 @@ int main() {
         }
 
     } while (choice != 6);
-
     return 0;
 }
 #endif
