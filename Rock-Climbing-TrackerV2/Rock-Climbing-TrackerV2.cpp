@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
 
-#ifdef _DEBUG
+#ifdef RUN_TESTS
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>
@@ -15,7 +15,7 @@
 int runInteractive();
 
 int main(int argc, char** argv) {
-#ifdef _DEBUG
+#ifdef RUN_TESTS
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
     _CrtMemState before{}, after{}, diff{};
     _CrtMemCheckpoint(&before);
@@ -735,7 +735,7 @@ public:
 // STEP 4 — MAIN + DOCTEST (FINAL)
 // =======================================================
 
-#ifdef _DEBUG
+#ifdef RUN_TESTS
 // =======================================================
 // DOCTEST UNIT TESTS 
 // =======================================================
