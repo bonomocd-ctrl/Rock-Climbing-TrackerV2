@@ -53,7 +53,8 @@ int main(int argc, char** argv) {
 #include <iomanip>
 #include <fstream>
 #include <windows.h>
-
+#include <stdexcept>
+#include <sstream>
 using namespace std;
 
 // ==========================
@@ -90,10 +91,17 @@ void setColor(int color) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }
 
-
+// ==========================
+// CUSTOM EXCEPTION (NEW)
+// ==========================
+class IndexOutOfRange : public std::runtime_error {
+public:
+    explicit IndexOutOfRange(const std::string& msg)
+        : std::runtime_error(msg) {}
+};
 
 // ==========================
-// BASE CLASS (REQUIRED)
+// BASE CLASS 
 // ==========================
 class Activity {
 protected:
@@ -144,7 +152,7 @@ public:
 
 
 // ==========================
-// COMPOSITION CLASS (REQUIRED)
+// COMPOSITION CLASS 
 // ==========================
 class Location {
 private:
@@ -161,14 +169,14 @@ public:
     void setPlace(string p) { place = p; }
     void setIndoor(bool i) { indoor = i; }
 
-    // Helper method (REQUIRED)
+    // Helper method 
     string formattedLocation() const {
         return place + (indoor ? " (Indoor)" : " (Outdoor)");
     }
 };
 
 // ==========================
-// DERIVED CLASS #1 (REQUIRED)
+// DERIVED CLASS #1 
 // ==========================
 class ClimbSession : public Activity {
 private:
@@ -188,7 +196,7 @@ public:
             location.isIndoor() == other.location.isIndoor();
     }
 
-    // ===== STREAM OVERRIDE ===== NEW
+    // ===== STREAM OVERRIDE ===== 
     void toStream(ostream& os) const override {
         os << "[Climb] "
             << name << " | "
@@ -220,7 +228,7 @@ public:
 
 
 // ==========================
-// DERIVED CLASS #2 (REQUIRED)
+// DERIVED CLASS #2 
 // ==========================
 class TrainingSession : public Activity {
 private:
@@ -235,7 +243,7 @@ public:
     string getType() const override {
         return "Training Session";
     }
-    // ===== STREAM OVERRIDE ===== NEW
+    // ===== STREAM OVERRIDE ===== 
     void toStream(ostream& os) const override {
         os << "[Training] "
             << name << " | "
@@ -381,7 +389,7 @@ void saveReport(const string& filename, const string& report) {
 }
 
 // ==========================
-// FILE LOAD (UNCHANGED)
+// FILE LOAD 
 // ==========================
 string loadReport(const string& filename) {
     ifstream inFile(filename);
@@ -451,8 +459,9 @@ public:
     // REMOVE ELEMENT
     // ==========================
     void remove(int index) {
-        if (index < 0 || index >= size)
-            return;
+        if (index < 0 || index >= size) {
+            throw IndexOutOfRange("DynamicArray::remove - index out of range");
+        }
 
         for (int i = index; i < size - 1; i++)
             arr[i] = arr[i + 1];
@@ -464,13 +473,18 @@ public:
     // INDEXING
     // ==========================
     T& operator[](int index) {
+        if (index < 0 || index >= size) {
+            throw IndexOutOfRange("DynamicArray::operator[] - index out of range");
+        }
         return arr[index];
     }
 
     const T& operator[](int index) const {
+        if (index < 0 || index >= size) {
+            throw IndexOutOfRange("DynamicArray::operator[] const - index out of range");
+        }
         return arr[index];
     }
-
     // ==========================
     // SIZE ACCESSOR
     // ==========================
@@ -486,14 +500,12 @@ private:
 public:
     // Constructor
     ActivityManager(int cap = 5) : items(cap) {}
-    // ================= COPY CONSTRUCTOR (STEP 3) =================
+
     ActivityManager(const ActivityManager& other) : items(other.getSize()) {
         for (int i = 0; i < other.items.getSize(); i++) {
             items.add(other.items[i]->clone());
         }
     }
-
-    // ================= COPY ASSIGNMENT (STEP 4) =================
     ActivityManager& operator=(const ActivityManager& other) {
         if (this != &other) {
             clear();  // delete current owned memory
@@ -516,13 +528,13 @@ public:
 
     // Remove activity at index (and delete memory)
     void remove(int index) {
-        if (index < 0 || index >= items.getSize())
-            return;
+        if (index < 0 || index >= items.getSize()) {
+            throw IndexOutOfRange("ActivityManager::remove - invalid index");
+        }
 
-        delete items[index];   // free the object
-        items.remove(index);   // remove pointer from array
+        delete items[index];
+        items.remove(index);
     }
-
     // Delete everything safely
     void clear() {
         while (items.getSize() > 0) {
@@ -543,11 +555,9 @@ public:
     }
     // operator[]
     Activity* operator[](int index) const {
-        if (index < 0 || index >= items.getSize())
-            return nullptr;
+        // throws if invalid (DynamicArray now throws)
         return items[index];
     }
-
     // operator+= (add)
     ActivityManager& operator+=(Activity* act) {
         this->add(act);     // explicit this pointer usage 
@@ -731,10 +741,6 @@ public:
         return (a > b) ? a : b;
     }
 };
-// =======================================================
-// STEP 4 — MAIN + DOCTEST (FINAL)
-// =======================================================
-
 #ifdef RUN_TESTS
 // =======================================================
 // DOCTEST UNIT TESTS 
@@ -815,7 +821,7 @@ TEST_CASE("Derived class setters work correctly") {
     CHECK(cs.getLocation().isIndoor() == false);
 }
 
-// ===== MANAGER TESTS (LEAK-FREE) =====
+// ===== MANAGER TESTS 
 TEST_CASE("Manager adds and removes activities") {
     ActivityManager mgr;
 
@@ -878,18 +884,29 @@ TEST_CASE("Manager operator[] valid index returns correct item") {
     mgr.clear();
 }
 
-TEST_CASE("Manager operator[] invalid index returns nullptr") {
+TEST_CASE("Manager operator[] invalid index throws") {
     ActivityManager mgr;
     Location loc("Gym", true);
 
     mgr += new ClimbSession("A", 0, EASY, 1.0, loc);
 
-    CHECK(mgr[5] == nullptr);
-    CHECK(mgr[-1] == nullptr);
+    CHECK_THROWS_AS(mgr[5], IndexOutOfRange);
+    CHECK_THROWS_AS(mgr[-1], IndexOutOfRange);
 
     mgr.clear();
 }
+TEST_CASE("Manager operator-= invalid removal throws") {
+    ActivityManager mgr;
 
+    CHECK_THROWS_AS(mgr -= 0, IndexOutOfRange);
+
+    Location loc("Gym", true);
+    mgr += new ClimbSession("A", 0, EASY, 1.0, loc);
+
+    CHECK_THROWS_AS(mgr -= 5, IndexOutOfRange);
+
+    mgr.clear();
+}
 TEST_CASE("Manager += and -= works") {
     ActivityManager mgr;
     Location loc("Gym", true);
@@ -941,6 +958,21 @@ TEST_CASE("DynamicArray resizes when capacity exceeded") {
     CHECK(arr.getSize() == 2);
     CHECK(arr[0] == 10);
     CHECK(arr[1] == 30);
+}
+TEST_CASE("DynamicArray throws on invalid index") {
+    DynamicArray<int> arr;
+    arr.add(1);
+
+    CHECK_THROWS_AS(arr[-1], IndexOutOfRange);
+    CHECK_THROWS_AS(arr[1], IndexOutOfRange);
+}
+
+TEST_CASE("DynamicArray throws on invalid remove") {
+    DynamicArray<int> arr;
+    arr.add(1);
+
+    CHECK_THROWS_AS(arr.remove(-1), IndexOutOfRange);
+    CHECK_THROWS_AS(arr.remove(5), IndexOutOfRange);
 }
 TEST_CASE("operator<< outputs correct string for TrainingSession") {
     TrainingSession ts("Hangboard", 0, HARD, 12);
@@ -1032,9 +1064,13 @@ int runInteractive() {
                 tracker.getManagerSize() - 1
             );
 
-            tracker.removeActivity(index);
-
-            cout << "Deleted.\n";
+            try {
+                tracker.removeActivity(index);
+                cout << "Deleted.\n";
+            }
+            catch (const std::exception& ex) {
+                cout << "Delete failed: " << ex.what() << "\n";
+            }
             break;
         }
 
