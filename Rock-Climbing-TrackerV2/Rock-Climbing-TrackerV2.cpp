@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest.h"
 
-#ifdef RUN_TESTS
+#ifdef _DEBUG
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h>
 #include <stdlib.h>
@@ -15,17 +15,19 @@
 int runInteractive();
 
 int main(int argc, char** argv) {
-#ifdef RUN_TESTS
+#ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
+
+    int result = 0;
+
+    // Build doctest objects first so their setup allocations are excluded
+    doctest::Context context(argc, argv);
+
     _CrtMemState before{}, after{}, diff{};
     _CrtMemCheckpoint(&before);
 
-    int result = 0;
-    {
-        doctest::Context context(argc, argv);
-        result = context.run();
-    }
-
+    result = context.run();
+    _CrtMemCheckpoint(&before);
     _CrtMemCheckpoint(&after);
 
     if (_CrtMemDifference(&diff, &before, &after)) {
@@ -492,7 +494,7 @@ public:
         return size;
     }
 };
-//MANAGER CLASS 
+//MANAGER CLASS
 class ActivityManager {
 private:
     DynamicArray<Activity*> items;
@@ -501,21 +503,9 @@ public:
     // Constructor
     ActivityManager(int cap = 5) : items(cap) {}
 
-    ActivityManager(const ActivityManager& other) : items(other.getSize()) {
-        for (int i = 0; i < other.items.getSize(); i++) {
-            items.add(other.items[i]->clone());
-        }
-    }
-    ActivityManager& operator=(const ActivityManager& other) {
-        if (this != &other) {
-            clear();  // delete current owned memory
+    ActivityManager(const ActivityManager&) = delete;
+    ActivityManager& operator=(const ActivityManager&) = delete;
 
-            for (int i = 0; i < other.items.getSize(); i++) {
-                items.add(other.items[i]->clone());
-            }
-        }
-        return *this;
-    }
     // Destructor (prevents ALL memory leaks)
     ~ActivityManager() {
         clear();
@@ -575,6 +565,15 @@ public:
             if (items[i] != nullptr)
                 items[i]->print(); //correct polymorphic function
         }
+    }
+
+    int countTypeRecursive(const string& type, int index = 0) const {
+        if (index >= items.getSize()) {
+            return 0;
+        }
+
+        int match = (items[index] != nullptr && items[index]->getType() == type) ? 1 : 0;
+        return match + countTypeRecursive(type, index + 1);
     }
 };
 
@@ -740,7 +739,7 @@ public:
         return (a > b) ? a : b;
     }
 };
-#ifdef RUN_TESTS
+#ifdef _DEBUG
 // =======================================================
 // DOCTEST UNIT TESTS 
 // =======================================================
@@ -982,6 +981,36 @@ TEST_CASE("operator<< outputs correct string for TrainingSession") {
     // should include key identity fields from TrainingSession::toStream
     CHECK(out.str().find("Hangboard") != std::string::npos);
     CHECK(out.str().find("12") != std::string::npos);
+}
+TEST_CASE("ActivityManager recursive count returns correct number of climb sessions") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route 1", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, MODERATE, 10));
+    mgr.add(new ClimbSession("Route 2", 0, HARD, 2.0, loc));
+
+    CHECK(mgr.countTypeRecursive("Climb Session") == 2);
+    CHECK(mgr.countTypeRecursive("Training Session") == 1);
+
+    mgr.clear();
+}
+
+TEST_CASE("ActivityManager recursive count returns 0 when empty") {
+    ActivityManager mgr;
+
+    CHECK(mgr.countTypeRecursive("Climb Session") == 0);
+}
+
+TEST_CASE("ActivityManager recursive count returns 0 for type not found") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route 1", 0, EASY, 1.0, loc));
+
+    CHECK(mgr.countTypeRecursive("Training Session") == 0);
+
+    mgr.clear();
 }
 #else
 // =======================================================
