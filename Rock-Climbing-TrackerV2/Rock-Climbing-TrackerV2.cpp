@@ -686,7 +686,7 @@ public:
         string level = determineExperienceLevel(totalHours);
         string frequency = determineClimberType(climbingDays);
         string rating = performanceRating(avgHours);
-
+        // Generate a table
         setColor(11);
         cout << "\n=================================\n";
         cout << "       CLIMBING SUMMARY\n";
