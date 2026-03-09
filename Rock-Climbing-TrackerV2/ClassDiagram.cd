@@ -1,4 +1,67 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="IndexOutOfRange">
+    <Position X="11.5" Y="1.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Activity">
+    <Position X="7.5" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAIAIBAAAAIRAAAAAAAAAgAQAEAABCAAAEEEAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Location">
+    <Position X="13.5" Y="5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgIAAAAAIAAEQAAAAAIAAAAAAAAAQAgAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ClimbSession">
+    <Position X="6" Y="2.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAYAABAAAAAAAAAAAAAAAQAiATAAAQAAAAAAFAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="TrainingSession">
+    <Position X="9" Y="2.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAABAAAAEAEAAAEAAgAQAAAAAAAAAAEAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DynamicArray&lt;T&gt;">
+    <Position X="18" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAIAAAAAEAIIAAAAAgAEAAAAAAQAgAAACEAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ActivityManager">
+    <Position X="14.5" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEAAAAAAAIAAAAAEAAiAQQAAAAEABAAAAAAgAAAiAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ClimbingTracker">
+    <Position X="16.25" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAANAQACAAAAAIBAgACAAkAAABACAAACAQAAAAAAI=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Enum Name="ClimbDifficulty">
+    <Position X="11.5" Y="3.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAACAAAEAAAIAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Rock-Climbing-TrackerV2.cpp</FileName>
+    </TypeIdentifier>
+  </Enum>
   <Font Name="Segoe UI" Size="9" />
 </ClassDiagram>

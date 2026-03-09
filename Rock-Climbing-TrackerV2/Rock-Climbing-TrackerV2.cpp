@@ -17,17 +17,15 @@ int runInteractive();
 int main(int argc, char** argv) {
 #ifdef _DEBUG
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF);
-
-    int result = 0;
-
-    // Build doctest objects first so their setup allocations are excluded
-    doctest::Context context(argc, argv);
-
     _CrtMemState before{}, after{}, diff{};
     _CrtMemCheckpoint(&before);
 
-    result = context.run();
-    _CrtMemCheckpoint(&before);
+    int result = 0;
+    {
+        doctest::Context context(argc, argv);
+        result = context.run();
+    }
+
     _CrtMemCheckpoint(&after);
 
     if (_CrtMemDifference(&diff, &before, &after)) {
@@ -503,9 +501,21 @@ public:
     // Constructor
     ActivityManager(int cap = 5) : items(cap) {}
 
-    ActivityManager(const ActivityManager&) = delete;
-    ActivityManager& operator=(const ActivityManager&) = delete;
+    ActivityManager(const ActivityManager& other) : items(other.getSize()) {
+        for (int i = 0; i < other.items.getSize(); i++) {
+            items.add(other.items[i]->clone());
+        }
+    }
+    ActivityManager& operator=(const ActivityManager& other) {
+        if (this != &other) {
+            clear();  // delete current owned memory
 
+            for (int i = 0; i < other.items.getSize(); i++) {
+                items.add(other.items[i]->clone());
+            }
+        }
+        return *this;
+    }
     // Destructor (prevents ALL memory leaks)
     ~ActivityManager() {
         clear();
@@ -690,6 +700,13 @@ public:
         cout << left << setw(25) << "Experience Level:" << level << endl;
         cout << left << setw(25) << "Climber Type:" << frequency << endl;
         cout << left << setw(25) << "Performance Rating:" << rating << endl;
+
+        cout << left << setw(25) << "Climb Sessions:"
+            << manager.countTypeRecursive("Climb Session") << endl;
+
+        cout << left << setw(25) << "Training Sessions:"
+            << manager.countTypeRecursive("Training Session") << endl;
+
         cout << "=================================\n";
     }
     // ==========================
