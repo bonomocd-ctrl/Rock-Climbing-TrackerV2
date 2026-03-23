@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
 #include <windows.h>
 #include <stdexcept>
 #include <sstream>
+#include <vector>
 using namespace std;
 
 // ==========================
@@ -495,98 +496,162 @@ public:
 //MANAGER CLASS
 class ActivityManager {
 private:
-    DynamicArray<Activity*> items;
+    vector<Activity*> items;
 
 public:
     // Constructor
-    ActivityManager(int cap = 5) : items(cap) {}
+    ActivityManager() = default;
 
-    ActivityManager(const ActivityManager& other) : items(other.getSize()) {
-        for (int i = 0; i < other.items.getSize(); i++) {
-            items.add(other.items[i]->clone());
+    // Copy constructor
+    ActivityManager(const ActivityManager& other) {
+        for (size_t i = 0; i < other.items.size(); i++) {
+            items.push_back(other.items.at(i)->clone());
         }
     }
+
+    // Copy assignment
     ActivityManager& operator=(const ActivityManager& other) {
         if (this != &other) {
-            clear();  // delete current owned memory
-
-            for (int i = 0; i < other.items.getSize(); i++) {
-                items.add(other.items[i]->clone());
+            clear();
+            for (size_t i = 0; i < other.items.size(); i++) {
+                items.push_back(other.items.at(i)->clone());
             }
         }
         return *this;
     }
-    // Destructor (prevents ALL memory leaks)
+
+    // Destructor
     ~ActivityManager() {
         clear();
     }
 
-    // Add a new activity (takes ownership of pointer)
+    // Add a new activity
     void add(Activity* act) {
-        items.add(act);
+        items.push_back(act);
     }
 
-    // Remove activity at index (and delete memory)
+    // Remove activity at index
     void remove(int index) {
-        if (index < 0 || index >= items.getSize()) {
+        if (index < 0 || index >= static_cast<int>(items.size())) {
             throw IndexOutOfRange("ActivityManager::remove - invalid index");
         }
 
-        delete items[index];
-        items.remove(index);
+        delete items.at(index);
+        items.erase(items.begin() + index);
     }
-    // Delete everything safely
+
+    // Clear all activities
     void clear() {
-        while (items.getSize() > 0) {
-            delete items[0];   // delete first object
-            items.remove(0);   // remove it from array
+        for (size_t i = 0; i < items.size(); i++) {
+            delete items.at(i);
         }
+        items.clear();
     }
 
     // Accessors
     int getSize() const {
-        return items.getSize();
+        return static_cast<int>(items.size());
     }
 
     Activity* get(int index) const {
-        if (index < 0 || index >= items.getSize())
+        if (index < 0 || index >= static_cast<int>(items.size())) {
             return nullptr;
-        return items[index];
+        }
+        return items.at(index);
     }
+
     // operator[]
     Activity* operator[](int index) const {
-        // throws if invalid (DynamicArray now throws)
-        return items[index];
+        if (index < 0 || index >= static_cast<int>(items.size())) {
+            throw IndexOutOfRange("ActivityManager::operator[] - invalid index");
+        }
+        return items.at(index);
     }
-    // operator+= (add)
+
+    // operator+=
     ActivityManager& operator+=(Activity* act) {
-        this->add(act);     // explicit this pointer usage 
+        add(act);
         return *this;
     }
 
-    // operator-= (remove by index)
+    // operator-=
     ActivityManager& operator-=(int index) {
         remove(index);
         return *this;
     }
-    // Example report function
+
+    // Display all
     void displayAll() const {
-        for (int i = 0; i < items.getSize(); i++) {
-            if (items[i] != nullptr)
-                items[i]->print(); //correct polymorphic function
+        for (size_t i = 0; i < items.size(); i++) {
+            if (items.at(i) != nullptr) {
+                items.at(i)->print();
+            }
         }
     }
 
+    // Recursive count from your previous assignment
     int countTypeRecursive(const string& type, int index = 0) const {
-        if (index >= items.getSize()) {
+        if (index >= static_cast<int>(items.size())) {
             return 0;
         }
 
-        int match = (items[index] != nullptr && items[index]->getType() == type) ? 1 : 0;
+        int match = (items.at(index) != nullptr && items.at(index)->getType() == type) ? 1 : 0;
         return match + countTypeRecursive(type, index + 1);
     }
-};
 
+    // ==========================
+    // NEW: Sequential Search
+    // ==========================
+    int sequentialSearchByName(const string& target) const {
+        for (int i = 0; i < static_cast<int>(items.size()); i++) {
+            if (items.at(i) != nullptr && items.at(i)->getName() == target) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // ==========================
+    // NEW: Bubble Sort
+    // ==========================
+    void bubbleSortByName() {
+        for (int pass = 0; pass < static_cast<int>(items.size()) - 1; pass++) {
+            for (int i = 0; i < static_cast<int>(items.size()) - 1 - pass; i++) {
+                if (items.at(i)->getName() > items.at(i + 1)->getName()) {
+                    Activity* temp = items.at(i);
+                    items.at(i) = items.at(i + 1);
+                    items.at(i + 1) = temp;
+                }
+            }
+        }
+    }
+
+    // ==========================
+    // NEW: Binary Search
+    // Vector must already be sorted
+    // ==========================
+    int binarySearchByName(const string& target) const {
+        int low = 0;
+        int high = static_cast<int>(items.size()) - 1;
+
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            string midName = items.at(mid)->getName();
+
+            if (midName == target) {
+                return mid;
+            }
+            else if (midName < target) {
+                low = mid + 1;
+            }
+            else {
+                high = mid - 1;
+            }
+        }
+
+        return -1;
+    }
+};
 class ClimbingTracker {
 private:
     string climberName;
@@ -1028,6 +1093,85 @@ TEST_CASE("ActivityManager recursive count returns 0 for type not found") {
     CHECK(mgr.countTypeRecursive("Training Session") == 0);
 
     mgr.clear();
+}
+//New tests
+TEST_CASE("Sequential search finds matching activity by name") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Boulder", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, MODERATE, 10));
+    mgr.add(new ClimbSession("Lead", 0, HARD, 2.0, loc));
+
+    CHECK(mgr.sequentialSearchByName("Hangboard") == 1);
+
+    mgr.clear();
+}
+TEST_CASE("Sequential search returns -1 when name not found") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Boulder", 0, EASY, 1.0, loc));
+
+    CHECK(mgr.sequentialSearchByName("Campus") == -1);
+
+    mgr.clear();
+}
+TEST_CASE("Sequential search returns -1 on empty vector") {
+    ActivityManager mgr;
+
+    CHECK(mgr.sequentialSearchByName("Anything") == -1);
+}
+TEST_CASE("Bubble sort orders activities by name") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Zulu", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Alpha", 0, MODERATE, 10));
+    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
+
+    mgr.bubbleSortByName();
+
+    CHECK(mgr[0]->getName() == "Alpha");
+    CHECK(mgr[1]->getName() == "Mike");
+    CHECK(mgr[2]->getName() == "Zulu");
+
+    mgr.clear();
+}
+TEST_CASE("Binary search finds item after sorting") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Zulu", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Alpha", 0, MODERATE, 10));
+    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
+
+    mgr.bubbleSortByName();
+
+    CHECK(mgr.binarySearchByName("Alpha") == 0);
+    CHECK(mgr.binarySearchByName("Mike") == 1);
+    CHECK(mgr.binarySearchByName("Zulu") == 2);
+
+    mgr.clear();
+}
+TEST_CASE("Binary search returns -1 when name not found") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Alpha", 0, EASY, 1.0, loc));
+    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
+    mgr.add(new TrainingSession("Zulu", 0, MODERATE, 10));
+
+    mgr.bubbleSortByName();
+
+    CHECK(mgr.binarySearchByName("Campus") == -1);
+
+    mgr.clear();
+}
+TEST_CASE("Binary search returns -1 on empty vector") {
+    ActivityManager mgr;
+
+    CHECK(mgr.binarySearchByName("Anything") == -1);
 }
 #else
 // =======================================================
