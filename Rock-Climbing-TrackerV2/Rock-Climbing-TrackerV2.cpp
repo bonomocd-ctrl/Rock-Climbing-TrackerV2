@@ -57,7 +57,6 @@ int main(int argc, char** argv) {
 #include <sstream>
 #include <vector>
 using namespace std;
-
 // ==========================
 // CONSTANTS 
 // ==========================
