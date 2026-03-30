@@ -1419,7 +1419,6 @@ TEST_CASE("Iterator starts at front and advances correctly") {
     it.next();
     CHECK_FALSE(it.hasCurrent());
 }
-
 TEST_CASE("Recursive count still works with linked list storage") {
     ActivityManager mgr;
     Location loc("Gym", true);
