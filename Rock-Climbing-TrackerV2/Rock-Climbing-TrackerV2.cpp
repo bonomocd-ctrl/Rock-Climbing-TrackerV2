@@ -492,79 +492,317 @@ public:
         return size;
     }
 };
-//MANAGER CLASS
+// ==========================
+// LINKED LIST ADT
+// Unordered singly linked list
+// ==========================
+class ActivityLinkedList {
+private:
+    struct Node {
+        Activity* data;
+        Node* next;
+
+        Node(Activity* d, Node* n = nullptr)
+            : data(d), next(n) {
+        }
+    };
+
+    Node* head;
+    Node* tail;
+    int size;
+
+public:
+    // ==========================
+    // ITERATOR CLASS
+    // ==========================
+    class Iterator {
+    private:
+        Node* current;
+
+    public:
+        Iterator(Node* start) : current(start) {}
+
+        bool hasCurrent() const {
+            return current != nullptr;
+        }
+
+        void next() {
+            if (current != nullptr) {
+                current = current->next;
+            }
+        }
+
+        Activity* getData() const {
+            if (current == nullptr) {
+                return nullptr;
+            }
+            return current->data;
+        }
+    };
+
+    // ==========================
+    // CONSTRUCTOR
+    // ==========================
+    ActivityLinkedList() : head(nullptr), tail(nullptr), size(0) {}
+
+    // ==========================
+    // COPY CONSTRUCTOR
+    // deep copy
+    // ==========================
+    ActivityLinkedList(const ActivityLinkedList& other)
+        : head(nullptr), tail(nullptr), size(0) {
+        Node* current = other.head;
+        while (current != nullptr) {
+            insertBack(current->data->clone());
+            current = current->next;
+        }
+    }
+
+    // ==========================
+    // COPY ASSIGNMENT
+    // deep copy
+    // ==========================
+    ActivityLinkedList& operator=(const ActivityLinkedList& other) {
+        if (this != &other) {
+            clear();
+            Node* current = other.head;
+            while (current != nullptr) {
+                insertBack(current->data->clone());
+                current = current->next;
+            }
+        }
+        return *this;
+    }
+
+    // ==========================
+    // DESTRUCTOR
+    // ==========================
+    ~ActivityLinkedList() {
+        clear();
+    }
+
+    // ==========================
+    // INSERT FRONT
+    // ==========================
+    void insertFront(Activity* act) {
+        Node* newNode = new Node(act, head);
+        head = newNode;
+
+        if (tail == nullptr) {
+            tail = newNode;
+        }
+
+        size++;
+    }
+
+    // ==========================
+    // INSERT BACK
+    // ==========================
+    void insertBack(Activity* act) {
+        Node* newNode = new Node(act);
+
+        if (head == nullptr) {
+            head = tail = newNode;
+        }
+        else {
+            tail->next = newNode;
+            tail = newNode;
+        }
+
+        size++;
+    }
+
+    // ==========================
+    // DELETE AT POSITION
+    // returns true if removed
+    // ==========================
+    bool deleteAtPosition(int index) {
+        if (index < 0 || index >= size) {
+            return false;
+        }
+
+        Node* toDelete = nullptr;
+
+        if (index == 0) {
+            toDelete = head;
+            head = head->next;
+
+            if (head == nullptr) {
+                tail = nullptr;
+            }
+        }
+        else {
+            Node* prev = head;
+            for (int i = 0; i < index - 1; i++) {
+                prev = prev->next;
+            }
+
+            toDelete = prev->next;
+            prev->next = toDelete->next;
+
+            if (toDelete == tail) {
+                tail = prev;
+            }
+        }
+
+        delete toDelete->data;
+        delete toDelete;
+        size--;
+        return true;
+    }
+
+    // ==========================
+    // SEARCH BY NAME
+    // returns index or -1
+    // ==========================
+    int searchByName(const string& target) const {
+        Node* current = head;
+        int index = 0;
+
+        while (current != nullptr) {
+            if (current->data != nullptr && current->data->getName() == target) {
+                return index;
+            }
+            current = current->next;
+            index++;
+        }
+
+        return -1;
+    }
+
+    // ==========================
+    // GET AT POSITION
+    // ==========================
+    Activity* getAtPosition(int index) const {
+        if (index < 0 || index >= size) {
+            return nullptr;
+        }
+
+        Node* current = head;
+        for (int i = 0; i < index; i++) {
+            current = current->next;
+        }
+
+        return current->data;
+    }
+
+    // ==========================
+    // PRINT/TRAVERSE
+    // uses iterator
+    // ==========================
+    void printList() const {
+        Iterator it(head);
+
+        while (it.hasCurrent()) {
+            Activity* act = it.getData();
+            if (act != nullptr) {
+                act->print();
+            }
+            it.next();
+        }
+    }
+
+    // ==========================
+    // CLEAR
+    // ==========================
+    void clear() {
+        Node* current = head;
+
+        while (current != nullptr) {
+            Node* temp = current;
+            current = current->next;
+
+            delete temp->data;
+            delete temp;
+        }
+
+        head = nullptr;
+        tail = nullptr;
+        size = 0;
+    }
+
+    // ==========================
+    // SIZE
+    // ==========================
+    int getSize() const {
+        return size;
+    }
+
+    // ==========================
+    // BEGIN ITERATOR
+    // ==========================
+    Iterator begin() const {
+        return Iterator(head);
+    }
+};
+
+// ==========================
+// MANAGER CLASS
+// now uses custom linked list ADT
+// ==========================
 class ActivityManager {
 private:
-    vector<Activity*> items;
+    ActivityLinkedList items;
 
 public:
     // Constructor
     ActivityManager() = default;
 
     // Copy constructor
-    ActivityManager(const ActivityManager& other) {
-        for (size_t i = 0; i < other.items.size(); i++) {
-            items.push_back(other.items.at(i)->clone());
-        }
+    ActivityManager(const ActivityManager& other)
+        : items(other.items) {
     }
 
     // Copy assignment
     ActivityManager& operator=(const ActivityManager& other) {
         if (this != &other) {
-            clear();
-            for (size_t i = 0; i < other.items.size(); i++) {
-                items.push_back(other.items.at(i)->clone());
-            }
+            items = other.items;
         }
         return *this;
     }
 
     // Destructor
-    ~ActivityManager() {
-        clear();
+    ~ActivityManager() = default;
+
+    // Add activity at back
+    void add(Activity* act) {
+        items.insertBack(act);
     }
 
-    // Add a new activity
-    void add(Activity* act) {
-        items.push_back(act);
+    // Optional second insertion position
+    void addToFront(Activity* act) {
+        items.insertFront(act);
     }
 
     // Remove activity at index
     void remove(int index) {
-        if (index < 0 || index >= static_cast<int>(items.size())) {
+        if (!items.deleteAtPosition(index)) {
             throw IndexOutOfRange("ActivityManager::remove - invalid index");
         }
-
-        delete items.at(index);
-        items.erase(items.begin() + index);
     }
 
     // Clear all activities
     void clear() {
-        for (size_t i = 0; i < items.size(); i++) {
-            delete items.at(i);
-        }
         items.clear();
     }
 
-    // Accessors
+    // Size
     int getSize() const {
-        return static_cast<int>(items.size());
+        return items.getSize();
     }
 
+    // Get by index
     Activity* get(int index) const {
-        if (index < 0 || index >= static_cast<int>(items.size())) {
-            return nullptr;
-        }
-        return items.at(index);
+        return items.getAtPosition(index);
     }
 
     // operator[]
     Activity* operator[](int index) const {
-        if (index < 0 || index >= static_cast<int>(items.size())) {
+        Activity* act = items.getAtPosition(index);
+        if (act == nullptr) {
             throw IndexOutOfRange("ActivityManager::operator[] - invalid index");
         }
-        return items.at(index);
+        return act;
     }
 
     // operator+=
@@ -581,50 +819,40 @@ public:
 
     // Display all
     void displayAll() const {
-        for (size_t i = 0; i < items.size(); i++) {
-            if (items.at(i) != nullptr) {
-                items.at(i)->print();
-            }
-        }
+        items.printList();
     }
 
-    // Recursive count from your previous assignment
+    // Recursive count
     int countTypeRecursive(const string& type, int index = 0) const {
-        if (index >= static_cast<int>(items.size())) {
+        if (index >= items.getSize()) {
             return 0;
         }
 
-        int match = (items.at(index) != nullptr && items.at(index)->getType() == type) ? 1 : 0;
+        Activity* act = items.getAtPosition(index);
+        int match = (act != nullptr && act->getType() == type) ? 1 : 0;
+
         return match + countTypeRecursive(type, index + 1);
     }
 
-    // ==========================
-    // NEW: Sequential Search
-    // ==========================
+    // Search
     int sequentialSearchByName(const string& target) const {
-        for (int i = 0; i < static_cast<int>(items.size()); i++) {
-            if (items.at(i) != nullptr && items.at(i)->getName() == target) {
-                return i;
-            }
-        }
-        return -1;
+        return items.searchByName(target);
     }
 
-    // ==========================
-    // NEW: Bubble Sort
-    // ==========================
-    void bubbleSortByName() {
-        for (int pass = 0; pass < static_cast<int>(items.size()) - 1; pass++) {
-            for (int i = 0; i < static_cast<int>(items.size()) - 1 - pass; i++) {
-                if (items.at(i)->getName() > items.at(i + 1)->getName()) {
-                    Activity* temp = items.at(i);
-                    items.at(i) = items.at(i + 1);
-                    items.at(i + 1) = temp;
-                }
+    // using iterator 
+    void displayAllWithIterator() const {
+        ActivityLinkedList::Iterator it = items.begin();
+
+        while (it.hasCurrent()) {
+            Activity* act = it.getData();
+            if (act != nullptr) {
+                act->print();
             }
+            it.next();
         }
     }
-
+};
+/*
     // ==========================
     // NEW: Binary Search
     // Vector must already be sorted
@@ -651,6 +879,7 @@ public:
         return -1;
     }
 };
+*/
 class ClimbingTracker {
 private:
     string climberName;
@@ -1093,20 +1322,67 @@ TEST_CASE("ActivityManager recursive count returns 0 for type not found") {
 
     mgr.clear();
 }
-//New tests
-TEST_CASE("Sequential search finds matching activity by name") {
+//New
+TEST_CASE("Linked list insert back into empty manager works") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("A", 0, EASY, 1.0, loc));
+
+    CHECK(mgr.getSize() == 1);
+    CHECK(mgr[0]->getName() == "A");
+
+    mgr.clear();
+}
+
+TEST_CASE("Linked list insert front works") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("B", 0, EASY, 1.0, loc));
+    mgr.addToFront(new ClimbSession("A", 0, EASY, 1.0, loc));
+
+    CHECK(mgr.getSize() == 2);
+    CHECK(mgr[0]->getName() == "A");
+    CHECK(mgr[1]->getName() == "B");
+
+    mgr.clear();
+}
+
+TEST_CASE("Linked list delete removes existing node") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("A", 0, EASY, 1.0, loc));
+    mgr.add(new ClimbSession("B", 0, EASY, 1.0, loc));
+
+    mgr.remove(0);
+
+    CHECK(mgr.getSize() == 1);
+    CHECK(mgr[0]->getName() == "B");
+
+    mgr.clear();
+}
+
+TEST_CASE("Linked list delete node that does not exist throws") {
+    ActivityManager mgr;
+
+    CHECK_THROWS_AS(mgr.remove(0), IndexOutOfRange);
+}
+
+TEST_CASE("Linked list search finds node") {
     ActivityManager mgr;
     Location loc("Gym", true);
 
     mgr.add(new ClimbSession("Boulder", 0, EASY, 1.0, loc));
     mgr.add(new TrainingSession("Hangboard", 0, MODERATE, 10));
-    mgr.add(new ClimbSession("Lead", 0, HARD, 2.0, loc));
 
     CHECK(mgr.sequentialSearchByName("Hangboard") == 1);
 
     mgr.clear();
 }
-TEST_CASE("Sequential search returns -1 when name not found") {
+
+TEST_CASE("Linked list search returns -1 when not found") {
     ActivityManager mgr;
     Location loc("Gym", true);
 
@@ -1116,61 +1392,50 @@ TEST_CASE("Sequential search returns -1 when name not found") {
 
     mgr.clear();
 }
-TEST_CASE("Sequential search returns -1 on empty vector") {
+
+TEST_CASE("Traversing empty linked list is safe") {
     ActivityManager mgr;
 
+    CHECK(mgr.getSize() == 0);
     CHECK(mgr.sequentialSearchByName("Anything") == -1);
 }
-TEST_CASE("Bubble sort orders activities by name") {
+
+TEST_CASE("Iterator starts at front and advances correctly") {
+    ActivityLinkedList list;
+    Location loc("Gym", true);
+
+    list.insertBack(new ClimbSession("A", 0, EASY, 1.0, loc));
+    list.insertBack(new ClimbSession("B", 0, EASY, 1.0, loc));
+
+    ActivityLinkedList::Iterator it = list.begin();
+
+    REQUIRE(it.hasCurrent());
+    CHECK(it.getData()->getName() == "A");
+
+    it.next();
+    REQUIRE(it.hasCurrent());
+    CHECK(it.getData()->getName() == "B");
+
+    it.next();
+    CHECK_FALSE(it.hasCurrent());
+}
+
+TEST_CASE("Recursive count still works with linked list storage") {
     ActivityManager mgr;
     Location loc("Gym", true);
 
-    mgr.add(new ClimbSession("Zulu", 0, EASY, 1.0, loc));
-    mgr.add(new TrainingSession("Alpha", 0, MODERATE, 10));
-    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
+    mgr.add(new ClimbSession("Route 1", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, MODERATE, 10));
+    mgr.add(new ClimbSession("Route 2", 0, HARD, 2.0, loc));
 
-    mgr.bubbleSortByName();
-
-    CHECK(mgr[0]->getName() == "Alpha");
-    CHECK(mgr[1]->getName() == "Mike");
-    CHECK(mgr[2]->getName() == "Zulu");
+    CHECK(mgr.countTypeRecursive("Climb Session") == 2);
+    CHECK(mgr.countTypeRecursive("Training Session") == 1);
 
     mgr.clear();
 }
-TEST_CASE("Binary search finds item after sorting") {
+TEST_CASE("Printing empty linked list is safe") {
     ActivityManager mgr;
-    Location loc("Gym", true);
-
-    mgr.add(new ClimbSession("Zulu", 0, EASY, 1.0, loc));
-    mgr.add(new TrainingSession("Alpha", 0, MODERATE, 10));
-    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
-
-    mgr.bubbleSortByName();
-
-    CHECK(mgr.binarySearchByName("Alpha") == 0);
-    CHECK(mgr.binarySearchByName("Mike") == 1);
-    CHECK(mgr.binarySearchByName("Zulu") == 2);
-
-    mgr.clear();
-}
-TEST_CASE("Binary search returns -1 when name not found") {
-    ActivityManager mgr;
-    Location loc("Gym", true);
-
-    mgr.add(new ClimbSession("Alpha", 0, EASY, 1.0, loc));
-    mgr.add(new ClimbSession("Mike", 0, HARD, 2.0, loc));
-    mgr.add(new TrainingSession("Zulu", 0, MODERATE, 10));
-
-    mgr.bubbleSortByName();
-
-    CHECK(mgr.binarySearchByName("Campus") == -1);
-
-    mgr.clear();
-}
-TEST_CASE("Binary search returns -1 on empty vector") {
-    ActivityManager mgr;
-
-    CHECK(mgr.binarySearchByName("Anything") == -1);
+    CHECK_NOTHROW(mgr.displayAll());
 }
 #else
 // =======================================================
