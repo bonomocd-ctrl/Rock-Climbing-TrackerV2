@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     }
 
     _CrtMemCheckpoint(&after);
- 
+    _CrtMemCheckpoint(&before);
     if (_CrtMemDifference(&diff, &before, &after)) {
         std::cerr << "\nREAL leak(s) detected in YOUR code during test run:\n";
         _CrtMemDumpStatistics(&diff);
