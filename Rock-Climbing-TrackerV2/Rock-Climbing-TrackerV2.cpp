@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
 #include <stdexcept>
 #include <sstream>
 #include <vector>
+#include <cassert> //assert added by Chris Noonan for the week 11 assignment
 using namespace std;
 // ==========================
 // CONSTANTS 
@@ -99,6 +100,161 @@ public:
     explicit IndexOutOfRange(const std::string& msg)
         : std::runtime_error(msg) {}
 };
+
+//New code for week 11 assignment, added by Chris Noonan
+
+template <class Type>
+class arrayStack {
+private:
+    int maxStackSize;
+    int stackTop;
+    Type* list;
+
+public:
+
+    arrayStack(int stackSize = 100)  //default size 100
+    {
+        if (stackSize <= 0) {
+            cout << "Size of stack must be positive; defaulting to size 100..." << endl;
+
+            maxStackSize = 100;
+        }
+        else
+            maxStackSize = stackSize;
+        
+        stackTop = 0;
+        list = new Type[maxStackSize];
+    }
+    void initializeStack() 
+    {
+        stackTop = 0;
+    }
+
+    bool isEmptyStack() 
+    {
+        return (stackTop == 0);
+    }
+
+    bool isFullStack() 
+    {
+        return (stackTop == maxStackSize);
+    }
+
+    void push(const Type& newItem) 
+    {
+        if (!isFullStack()) {
+            list[stackTop] = newItem;
+
+            stackTop++;
+        }
+        else
+            cout << "Cannot push to full stack" << endl;
+    }
+
+    Type top() const 
+    {
+        assert(stackTop != 0);
+
+        return list[stackTop - 1];
+    }
+
+    void pop()
+    {
+        if (!isEmptyStack())
+            stackTop--;
+        else
+            cout << "Cannot pop from empty stack" << endl;
+    }
+
+    ~arrayStack() 
+    {
+        delete[] list;
+    }
+};
+
+template <class Type>
+class arrayQueue {
+private:
+    int maxQueueSize;
+    int count;
+    int queueFront;
+    int queueRear;
+    Type* list;
+
+public:
+
+    arrayQueue(int queueSize = 100) //default size 100
+    {
+        if (queueSize <= 0) {
+            cout << "Size of queue must be positive; defaulting to size 100..." << endl;
+
+            maxQueueSize = 100;
+        }
+        else
+            maxQueueSize = queueSize;
+        queueFront = 0;
+        queueRear = maxQueueSize - 1;
+        count = 0;
+        list = new Type[maxQueueSize];
+    }
+
+    void initializeQueue()
+    {
+        queueFront = 0;
+        queueRear = maxQueueSize - 1;
+        count = 0;
+    }
+
+    bool isEmptyQueue() const
+    {
+        return(count == 0);
+    }
+
+    bool isFullQueue() const
+    {
+        return(count == maxQueueSize);
+    }
+
+    Type front() const
+    {
+        assert(!isEmptyQueue());
+        return list[queueFront];
+    }
+
+    Type back() const 
+    {
+        assert(!isEmptyQueue());
+        return list[queueRear];
+    }
+
+    void addQueue(const Type& queueElement)
+    {
+        if (!isFullQueue()) {
+            queueRear = (queueRear + 1) % maxQueueSize;
+
+            count++;
+            list[queueRear] = queueElement;
+        }
+        else
+            cout << "Cannot add to a full queue." << endl;
+    }
+
+    void deleteQueue()
+    {
+        if (!isEmptyQueue()) {
+            count--;
+            queueFront = (queueFront + 1) % maxQueueSize;
+        }
+        else
+            cout << "Cannot remove from an empty queue." << endl;
+    }
+
+    ~arrayQueue()
+    {
+        delete[] list;
+    }
+};
+
 
 // ==========================
 // BASE CLASS 
@@ -1436,6 +1592,53 @@ TEST_CASE("Printing empty linked list is safe") {
     ActivityManager mgr;
     CHECK_NOTHROW(mgr.displayAll());
 }
+
+//Doctests added by Chris Noonan as part of the Week 11 assignment
+TEST_CASE("arrayStack basic operations")
+{
+    arrayStack<int> s(5);
+
+    CHECK(s.isEmptyStack() == true);
+
+    s.push(10);
+    s.push(20);
+    s.push(30);
+
+    CHECK(s.isEmptyStack() == false);
+    CHECK(s.top() == 30);
+
+    s.pop();
+    CHECK(s.top() == 20);
+
+    s.pop();
+    s.pop();
+
+    CHECK(s.isEmptyStack() == true);
+}
+
+TEST_CASE("arrayQueue basic operations")
+{
+    arrayQueue<int> q(5);
+
+    CHECK(q.isEmptyQueue() == true);
+
+    q.addQueue(10);
+    q.addQueue(20);
+    q.addQueue(30);
+
+    CHECK(q.front() == 10);
+    CHECK(q.back() == 30);
+
+    q.deleteQueue();
+
+    CHECK(q.front() == 20);
+
+    q.deleteQueue();
+    q.deleteQueue();
+
+    CHECK(q.isEmptyQueue() == true);
+}
+
 #else
 // =======================================================
 // INTERACTIVE MAIN (NOT USED IN CI)
