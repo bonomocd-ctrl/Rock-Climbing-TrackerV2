@@ -57,6 +57,9 @@ int main(int argc, char** argv) {
 #include <sstream>
 #include <vector>
 #include <cassert> //assert added by Chris Noonan for the week 11 assignment
+// ===== ASSIGNMENT 12 ADDITION =====
+// map included for STL map usage
+#include <map>
 using namespace std;
 // ==========================
 // CONSTANTS 
@@ -121,26 +124,26 @@ public:
         }
         else
             maxStackSize = stackSize;
-        
+
         stackTop = 0;
         list = new Type[maxStackSize];
     }
-    void initializeStack() 
+    void initializeStack()
     {
         stackTop = 0;
     }
 
-    bool isEmptyStack() 
+    bool isEmptyStack()
     {
         return (stackTop == 0);
     }
 
-    bool isFullStack() 
+    bool isFullStack()
     {
         return (stackTop == maxStackSize);
     }
 
-    void push(const Type& newItem) 
+    void push(const Type& newItem)
     {
         if (!isFullStack()) {
             list[stackTop] = newItem;
@@ -151,7 +154,7 @@ public:
             cout << "Cannot push to full stack" << endl;
     }
 
-    Type top() const 
+    Type top() const
     {
         assert(stackTop != 0);
 
@@ -166,7 +169,7 @@ public:
             cout << "Cannot pop from empty stack" << endl;
     }
 
-    ~arrayStack() 
+    ~arrayStack()
     {
         delete[] list;
     }
@@ -221,7 +224,7 @@ public:
         return list[queueFront];
     }
 
-    Type back() const 
+    Type back() const
     {
         assert(!isEmptyQueue());
         return list[queueRear];
@@ -900,19 +903,30 @@ class ActivityManager {
 private:
     ActivityLinkedList items;
 
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // STL map to track activity count by difficulty level
+    // KEY: difficulty string (e.g. "Easy", "Moderate", "Hard", "Extreme")
+    // VALUE: count of activities at that difficulty level
+    // WHY a map over another structure? Because a map gives us instant O(log n)
+    // lookup by difficulty name — no looping needed to find the count for
+    // a specific difficulty. This enhances the existing program by making
+    // difficulty based reporting faster and cleaner.
+    map<string, int> difficultyCount;
+
 public:
     // Constructor
     ActivityManager() = default;
 
     // Copy constructor
     ActivityManager(const ActivityManager& other)
-        : items(other.items) {
+        : items(other.items), difficultyCount(other.difficultyCount) {
     }
 
     // Copy assignment
     ActivityManager& operator=(const ActivityManager& other) {
         if (this != &other) {
             items = other.items;
+            difficultyCount = other.difficultyCount;
         }
         return *this;
     }
@@ -921,17 +935,40 @@ public:
     ~ActivityManager() = default;
 
     // Add activity at back
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Also inserts into the difficulty map when a new activity is added
     void add(Activity* act) {
         items.insertBack(act);
+        // insert or update difficulty count in map
+        string diff = difficultyToString(act->getDifficulty());
+        difficultyCount[diff]++;
     }
 
     // Optional second insertion position
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Also inserts into the difficulty map when added to front
     void addToFront(Activity* act) {
         items.insertFront(act);
+        // insert or update difficulty count in map
+        string diff = difficultyToString(act->getDifficulty());
+        difficultyCount[diff]++;
     }
 
     // Remove activity at index
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Also updates the difficulty map when an activity is removed
     void remove(int index) {
+        // get difficulty before removing so we can update the map
+        Activity* act = items.getAtPosition(index);
+        if (act != nullptr) {
+            string diff = difficultyToString(act->getDifficulty());
+            // delete from map — decrease count or remove key if count reaches 0
+            if (difficultyCount.count(diff) > 0) {
+                difficultyCount[diff]--;
+                if (difficultyCount[diff] == 0)
+                    difficultyCount.erase(diff);
+            }
+        }
         if (!items.deleteAtPosition(index)) {
             throw IndexOutOfRange("ActivityManager::remove - invalid index");
         }
@@ -940,6 +977,9 @@ public:
     // Clear all activities
     void clear() {
         items.clear();
+        // ===== ASSIGNMENT 12 ADDITION =====
+        // clear the difficulty map when all activities are cleared
+        difficultyCount.clear();
     }
 
     // Size
@@ -1007,7 +1047,48 @@ public:
             it.next();
         }
     }
+
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Lookup — retrieve count for a specific difficulty from the map
+    // Returns 0 if difficulty not found in map
+    // WHY map lookup over looping? Because map find is O(log n)
+    // much faster than looping through all activities
+    int getDifficultyCount(const string& difficulty) const {
+        auto it = difficultyCount.find(difficulty);
+        if (it != difficultyCount.end())
+            return it->second;
+        return 0;  // not found — return 0
+    }
+
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Iterate — traverse and display all key-value pairs in the map
+    // WHY iterate the map? Because map automatically keeps keys
+    // in sorted alphabetical order — no sorting needed
+    void displayDifficultyMap() const {
+        cout << "\n--- Activity Count by Difficulty ---\n";
+        if (difficultyCount.empty()) {
+            cout << "No activities recorded.\n";
+            return;
+        }
+        // iterate through all key-value pairs in the map
+        for (auto it = difficultyCount.begin(); it != difficultyCount.end(); ++it) {
+            cout << it->first << ": " << it->second << " activity(s)\n";
+        }
+    }
+
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Delete — remove a key-value pair from the map by difficulty name
+    // Returns true if key was found and deleted, false if not found
+    bool deleteDifficultyFromMap(const string& difficulty) {
+        auto it = difficultyCount.find(difficulty);
+        if (it != difficultyCount.end()) {
+            difficultyCount.erase(it);
+            return true;
+        }
+        return false;  // key not found
+    }
 };
+
 /*
     // ==========================
     // NEW: Binary Search
@@ -1036,6 +1117,7 @@ public:
     }
 };
 */
+
 class ClimbingTracker {
 private:
     string climberName;
@@ -1126,6 +1208,12 @@ public:
     void removeActivity(int index) { manager.remove(index); }
     int getManagerSize() const { return manager.getSize(); }
 
+    // ===== ASSIGNMENT 12 ADDITION =====
+    // Exposes difficulty map display to ClimbingTracker
+    void displayDifficultyMap() const {
+        manager.displayDifficultyMap();
+    }
+
     // ==========================
     // REPORT GENERATION
     // ==========================
@@ -1155,6 +1243,10 @@ public:
 
         cout << left << setw(25) << "Training Sessions:"
             << manager.countTypeRecursive("Training Session") << endl;
+
+        // ===== ASSIGNMENT 12 ADDITION =====
+        // Display difficulty map as part of the report
+        manager.displayDifficultyMap();
 
         cout << "=================================\n";
     }
@@ -1205,6 +1297,7 @@ public:
         return (a > b) ? a : b;
     }
 };
+
 #ifdef _DEBUG
 // =======================================================
 // DOCTEST UNIT TESTS 
@@ -1256,7 +1349,6 @@ TEST_CASE("Tracker adds sessions correctly") {
 
     CHECK(tracker.getActivityCount() == 1);
 
-    
     tracker.removeActivity(0);
 }
 
@@ -1299,7 +1391,6 @@ TEST_CASE("Manager adds and removes activities") {
     mgr.remove(0);
     CHECK(mgr.getSize() == 1);
 
-   
     mgr.clear();
 }
 
@@ -1383,7 +1474,6 @@ TEST_CASE("Manager += and -= works") {
     mgr -= 0;
 
     CHECK(mgr.getSize() == 1);
-
 
     mgr.clear();
 }
@@ -1639,6 +1729,121 @@ TEST_CASE("arrayQueue basic operations")
     CHECK(q.isEmptyQueue() == true);
 }
 
+// ===== ASSIGNMENT 12 ADDITION =====
+// STL Map Tests
+TEST_CASE("Map inserts difficulty count when activity is added") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    // add two easy and one hard activity
+    mgr.add(new ClimbSession("Route A", 0, EASY, 1.0, loc));
+    mgr.add(new ClimbSession("Route B", 0, EASY, 1.5, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, HARD, 10));
+
+    // map should have 2 easy and 1 hard
+    CHECK(mgr.getDifficultyCount("Easy") == 2);
+    CHECK(mgr.getDifficultyCount("Hard") == 1);
+
+    mgr.clear();
+}
+
+TEST_CASE("Map lookup returns 0 for difficulty that does not exist") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, EASY, 1.0, loc));
+
+    // Extreme was never added — should return 0
+    CHECK(mgr.getDifficultyCount("Extreme") == 0);
+
+    mgr.clear();
+}
+
+TEST_CASE("Map updates correctly when activity is removed") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, EASY, 1.0, loc));
+    mgr.add(new ClimbSession("Route B", 0, EASY, 1.5, loc));
+
+    CHECK(mgr.getDifficultyCount("Easy") == 2);
+
+    // remove first easy activity
+    mgr.remove(0);
+
+    CHECK(mgr.getDifficultyCount("Easy") == 1);
+
+    mgr.clear();
+}
+
+TEST_CASE("Map key is deleted when count reaches zero") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, HARD, 1.0, loc));
+
+    CHECK(mgr.getDifficultyCount("Hard") == 1);
+
+    // remove the only hard activity
+    mgr.remove(0);
+
+    // Hard key should be gone — lookup returns 0
+    CHECK(mgr.getDifficultyCount("Hard") == 0);
+}
+
+TEST_CASE("Map delete removes key from map") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, MODERATE, 1.0, loc));
+
+    CHECK(mgr.getDifficultyCount("Moderate") == 1);
+
+    // manually delete key from map
+    bool result = mgr.deleteDifficultyFromMap("Moderate");
+    CHECK(result == true);
+
+    // key should now be gone
+    CHECK(mgr.getDifficultyCount("Moderate") == 0);
+
+    mgr.clear();
+}
+
+TEST_CASE("Map delete returns false for key that does not exist") {
+    ActivityManager mgr;
+
+    // try to delete a key that was never inserted
+    bool result = mgr.deleteDifficultyFromMap("Extreme");
+    CHECK(result == false);
+}
+
+TEST_CASE("Map is empty after clear") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, HARD, 10));
+
+    mgr.clear();
+
+    // after clear map should have no entries
+    CHECK(mgr.getDifficultyCount("Easy") == 0);
+    CHECK(mgr.getDifficultyCount("Hard") == 0);
+}
+
+TEST_CASE("Map displays correctly with iterate") {
+    ActivityManager mgr;
+    Location loc("Gym", true);
+
+    mgr.add(new ClimbSession("Route A", 0, EASY, 1.0, loc));
+    mgr.add(new TrainingSession("Hangboard", 0, HARD, 10));
+
+    // should not crash when iterating
+    CHECK_NOTHROW(mgr.displayDifficultyMap());
+
+    mgr.clear();
+}
+
 #else
 // =======================================================
 // INTERACTIVE MAIN (NOT USED IN CI)
@@ -1682,6 +1887,9 @@ int runInteractive() {
         cout << "5. Load report\n";
         cout << "6. Exit\n";
         cout << "7. Delete Activity\n";
+        // ===== ASSIGNMENT 12 ADDITION =====
+        // New menu option to display difficulty map
+        cout << "8. View Activity Count by Difficulty\n";
         cout << "Choice: ";
         cin >> choice;
 
@@ -1696,9 +1904,6 @@ int runInteractive() {
         case 3:
             tracker.displayActivities();
             break;
-
-
-
 
         case 4:
             tracker.generateReport();
@@ -1728,7 +1933,11 @@ int runInteractive() {
             }
             break;
         }
-
+        // ===== ASSIGNMENT 12 ADDITION =====
+        // Display difficulty map from menu
+        case 8:
+            tracker.displayDifficultyMap();
+            break;
 
         default:
             setColor(12); // Red
@@ -1741,3 +1950,28 @@ int runInteractive() {
     return 0;
 }
 #endif
+
+
+/*
+Added std::map functionality to the existing Climbing Activity Tracker program.
+
+What I changed :
+-Added #include <map> to the headers
+- Added a map<string, int> called difficultyCount as a private
+member of ActivityManager
+- The map key is the difficulty string(Easy, Moderate, Hard, Extreme)
+and the value is the count of activities at that difficulty
+- Updated add(), addToFront(), remove(), and clear() to keep
+the map in sync with the linked list automatically
+- Added getDifficultyCount() for lookup
+- Added displayDifficultyMap() for iteration and display
+- Added deleteDifficultyFromMap() for explicit key deletion
+- Integrated map display into generateReport()
+- Added menu option 8 to view difficulty counts from the menu
+- Added 8 new tests covering all map operations and edge cases
+
+Why choose map :
+A map gives instant O(log n) lookup by difficulty name without
+looping through all activities.This enhances the existing program
+by making difficulty based reporting faster and cleaner.
+*/
