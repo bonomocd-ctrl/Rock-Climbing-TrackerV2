@@ -29,6 +29,7 @@ int main(int argc, char** argv) {
 
 
 
+
     _CrtMemCheckpoint(&after);
     _CrtMemCheckpoint(&before);
     if (_CrtMemDifference(&diff, &before, &after)) {
