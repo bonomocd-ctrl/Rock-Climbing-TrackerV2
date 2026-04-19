@@ -26,10 +26,6 @@ int main(int argc, char** argv) {
         result = context.run();
     }
 
-
-
-
-
     _CrtMemCheckpoint(&after);
     _CrtMemCheckpoint(&before);
     if (_CrtMemDifference(&diff, &before, &after)) {
