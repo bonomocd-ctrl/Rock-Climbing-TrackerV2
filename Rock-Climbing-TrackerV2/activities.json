@@ -1,0 +1,7 @@
+[
+  { "name": "Bouldering", "type": "climb", "difficulty": "Easy", "hours": 1.5 },
+  { "name": "Lead Climb", "type": "climb", "difficulty": "Hard", "hours": 2.0 },
+  { "name": "Hangboard", "type": "training", "difficulty": "Moderate", "reps": 10 },
+  { "name": "Campus Board", "type": "training", "difficulty": "Hard", "reps": 15 },
+  { "name": "Outdoor Climb", "type": "climb", "difficulty": "Extreme", "hours": 3.0 }
+]

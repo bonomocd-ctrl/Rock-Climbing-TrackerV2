@@ -126,7 +126,11 @@
     <ClCompile Include="Rock-Climbing-TrackerV2.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="activities.json" />
     <None Include="ClassDiagram.cd" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="json.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
