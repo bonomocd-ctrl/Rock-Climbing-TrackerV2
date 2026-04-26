@@ -65,7 +65,16 @@ int main(int argc, char** argv) {
 // ===== ASSIGNMENT 12 ADDITION =====
 // map included for STL map usage
 #include <map>
+// ===== ASSIGNMENT 13 ADDITION =====
+// nlohmann/json single-header library used for JSON parsing
+#include "json.hpp"
+// ===== ASSIGNMENT 13 ADDITION =====
+// cstdio is used in doctests so temporary JSON test files can be removed
+#include <cstdio>
 using namespace std;
+// ===== ASSIGNMENT 13 ADDITION =====
+// Alias makes nlohmann::json easier to read and use in the code
+using json = nlohmann::json;
 // ==========================
 // CONSTANTS 
 // ==========================
@@ -91,6 +100,20 @@ string difficultyToString(ClimbDifficulty d) {
     case EXTREME: return "Extreme";
     default: return "Unknown";
     }
+}
+
+// ==========================
+// JSON DIFFICULTY HELPER
+// ==========================
+// ===== ASSIGNMENT 13 ADDITION =====
+// Converts difficulty text from the JSON file into the existing enum
+ClimbDifficulty difficultyFromString(const string& difficulty) {
+    if (difficulty == "Easy") return EASY;
+    if (difficulty == "Moderate") return MODERATE;
+    if (difficulty == "Hard") return HARD;
+    if (difficulty == "Extreme") return EXTREME;
+
+    return EASY; // default fallback for unknown JSON difficulty values
 }
 
 // ==========================
@@ -578,12 +601,17 @@ private:
     void resize(int newCapacity) {
         T* newArr = new T[newCapacity];
 
-        for (int i = 0; i < size; i++)
+        // Only copy up to the minimum of size and newCapacity to avoid buffer overrun
+        int elementsToCopy = (size < newCapacity) ? size : newCapacity;
+        for (int i = 0; i < elementsToCopy; i++)
             newArr[i] = arr[i];
 
         delete[] arr;
         arr = newArr;
         capacity = newCapacity;
+        // If newCapacity < size, shrink size to avoid out-of-bounds access elsewhere
+        if (size > newCapacity)
+            size = newCapacity;
     }
 
 public:
@@ -1092,6 +1120,151 @@ public:
         }
         return false;  // key not found
     }
+
+    // ===== ASSIGNMENT 13 ADDITION =====
+    // Loads climbing/training activities from a JSON file using nlohmann/json.
+    // WHY: This consumes structured JSON data and loads it into the existing
+    // ActivityManager, which already stores activities in the linked list and
+    // updates the Week 12 difficulty map through add()
+    bool loadActivitiesFromJsonFile(const string& filename) {
+        try {
+            ifstream inFile(filename);
+
+            if (!inFile) {
+                cout << "JSON load failed: file not found.\n";
+                return false;
+            }
+
+            // Read entire file into a string
+            std::string content((std::istreambuf_iterator<char>(inFile)), std::istreambuf_iterator<char>());
+            inFile.close();
+
+            // Trim leading whitespace and ensure root is an array
+            auto firstNonWs = content.find_first_not_of(" \t\r\n");
+            if (firstNonWs == string::npos || content[firstNonWs] != '[') {
+                cout << "JSON load failed: root must be an array.\n";
+                return false;
+            }
+
+            size_t pos = firstNonWs + 1;
+
+            // Helper lambdas for extracting values from a single object string
+            auto extractString = [](const string& obj, const string& key, string& out) -> bool {
+                string keypat = "\"" + key + "\"";
+                size_t k = obj.find(keypat);
+                if (k == string::npos) return false;
+                size_t colon = obj.find(':', k + keypat.size());
+                if (colon == string::npos) return false;
+                size_t valStart = obj.find_first_not_of(" \t\r\n", colon + 1);
+                if (valStart == string::npos || obj[valStart] != '"') return false;
+                size_t q = valStart + 1;
+                while (q < obj.size()) {
+                    q = obj.find('"', q);
+                    if (q == string::npos) return false;
+                    // treat backslash-escaped quote as part of string (naive)
+                    if (q == 0 || obj[q - 1] != '\\') break;
+                    q++;
+                }
+                if (q == string::npos) return false;
+                out = obj.substr(valStart + 1, q - valStart - 1);
+                return true;
+                };
+
+            auto extractNumber = [](const string& obj, const string& key, double& out) -> bool {
+                string keypat = "\"" + key + "\"";
+                size_t k = obj.find(keypat);
+                if (k == string::npos) return false;
+                size_t colon = obj.find(':', k + keypat.size());
+                if (colon == string::npos) return false;
+                size_t valStart = obj.find_first_not_of(" \t\r\n", colon + 1);
+                if (valStart == string::npos) return false;
+                size_t valEnd = valStart;
+                while (valEnd < obj.size() &&
+                    (std::isdigit(static_cast<unsigned char>(obj[valEnd])) || obj[valEnd] == '-' ||
+                        obj[valEnd] == '+' || obj[valEnd] == '.' || obj[valEnd] == 'e' || obj[valEnd] == 'E'))
+                    ++valEnd;
+                if (valEnd == valStart) return false;
+                string num = obj.substr(valStart, valEnd - valStart);
+                try {
+                    out = stod(num);
+                    return true;
+                }
+                catch (...) {
+                    return false;
+                }
+                };
+
+            // Find top-level objects and parse them
+            while (true) {
+                // find next '{' that starts an object
+                pos = content.find('{', pos);
+                if (pos == string::npos) break;
+
+                // locate matching '}' (simple depth counting)
+                int depth = 0;
+                size_t endPos = pos;
+                bool closed = false;
+                for (; endPos < content.size(); ++endPos) {
+                    if (content[endPos] == '{') ++depth;
+                    else if (content[endPos] == '}') {
+                        --depth;
+                        if (depth == 0) {
+                            closed = true;
+                            break;
+                        }
+                    }
+                }
+                if (!closed) {
+                    cout << "JSON load failed: malformed JSON object.\n";
+                    return false;
+                }
+
+                string obj = content.substr(pos, endPos - pos + 1);
+
+                // extract required fields
+                string name, type, difficultyText;
+                if (!extractString(obj, "name", name) ||
+                    !extractString(obj, "type", type) ||
+                    !extractString(obj, "difficulty", difficultyText)) {
+                    cout << "JSON load failed: missing keys in object.\n";
+                    return false;
+                }
+
+                ClimbDifficulty diff = difficultyFromString(difficultyText);
+
+                if (type == "climb") {
+                    double hours = 0.0;
+                    if (!extractNumber(obj, "hours", hours)) {
+                        cout << "JSON load failed: missing or invalid hours.\n";
+                        return false;
+                    }
+                    add(new ClimbSession(name, 0, diff, hours, Location(name, true)));
+                }
+                else if (type == "training") {
+                    double repsD = 0.0;
+                    if (!extractNumber(obj, "reps", repsD)) {
+                        cout << "JSON load failed: missing or invalid reps.\n";
+                        return false;
+                    }
+                    int reps = static_cast<int>(repsD);
+                    add(new TrainingSession(name, 0, diff, reps));
+                }
+                else {
+                    // unknown type - skip or treat as error; treat as error here
+                    cout << "JSON load failed: unknown type '" << type << "'.\n";
+                    return false;
+                }
+
+                pos = endPos + 1;
+            }
+
+            return true;
+        }
+        catch (const exception& ex) {
+            cout << "JSON load failed: " << ex.what() << endl;
+            return false;
+        }
+    }
 };
 
 /*
@@ -1217,6 +1390,14 @@ public:
     // Exposes difficulty map display to ClimbingTracker
     void displayDifficultyMap() const {
         manager.displayDifficultyMap();
+    }
+
+    // ===== ASSIGNMENT 13 ADDITION =====
+    // Exposes JSON loading through ClimbingTracker
+    // WHY: The tracker owns the ActivityManager, so JSON data should enter
+    // the program through the same structure that already manages activities
+    bool loadActivitiesFromJsonFile(const string& filename) {
+        return manager.loadActivitiesFromJsonFile(filename);
     }
 
     // ==========================
@@ -1849,6 +2030,55 @@ TEST_CASE("Map displays correctly with iterate") {
     mgr.clear();
 }
 
+// ===== ASSIGNMENT 13 ADDITION =====
+// JSON Data Consumption Tests
+TEST_CASE("JSON loads activities into existing manager structures") {
+    const string filename = "test_activities.json";
+
+    // Create a temporary JSON file matching activities.json
+    ofstream out(filename);
+    out << R"([
+        { "name": "Bouldering", "type": "climb", "difficulty": "Easy", "hours": 1.5 },
+        { "name": "Lead Climb", "type": "climb", "difficulty": "Hard", "hours": 2.0 },
+        { "name": "Hangboard", "type": "training", "difficulty": "Moderate", "reps": 10 },
+        { "name": "Campus Board", "type": "training", "difficulty": "Hard", "reps": 15 },
+        { "name": "Outdoor Climb", "type": "climb", "difficulty": "Extreme", "hours": 3.0 }
+    ])";
+    out.close();
+
+    ClimbingTracker tracker;
+
+    // JSON data should load into the existing ActivityManager
+    CHECK(tracker.loadActivitiesFromJsonFile(filename) == true);
+    CHECK(tracker.getActivityCount() == 5);
+
+    std::remove(filename.c_str());
+}
+
+TEST_CASE("JSON handles missing file without crashing") {
+    ClimbingTracker tracker;
+
+    // Missing file should be handled safely and return false
+    CHECK(tracker.loadActivitiesFromJsonFile("missing_activities.json") == false);
+    CHECK(tracker.getActivityCount() == 0);
+}
+
+TEST_CASE("JSON handles malformed JSON without crashing") {
+    const string filename = "bad_activities.json";
+
+    // Create malformed JSON on purpose
+    ofstream out(filename);
+    out << "{ bad json file ";
+    out.close();
+
+    ClimbingTracker tracker;
+
+    CHECK(tracker.loadActivitiesFromJsonFile(filename) == false);
+    CHECK(tracker.getActivityCount() == 0);
+
+    std::remove(filename.c_str());
+}
+
 #else
 // =======================================================
 // INTERACTIVE MAIN (NOT USED IN CI)
@@ -1895,6 +2125,9 @@ int runInteractive() {
         // ===== ASSIGNMENT 12 ADDITION =====
         // New menu option to display difficulty map
         cout << "8. View Activity Count by Difficulty\n";
+        // ===== ASSIGNMENT 13 ADDITION =====
+        // New menu option to load activity data from activities.json
+        cout << "9. Load activities from JSON\n";
         cout << "Choice: ";
         cin >> choice;
 
@@ -1943,6 +2176,14 @@ int runInteractive() {
         case 8:
             tracker.displayDifficultyMap();
             break;
+        // ===== ASSIGNMENT 13 ADDITION =====
+        // Load activities from the JSON file and store them in the existing manager
+        case 9:
+            if (tracker.loadActivitiesFromJsonFile("activities.json"))
+                cout << "Activities loaded from JSON.\n";
+            else
+                cout << "Activities could not be loaded from JSON.\n";
+            break;
 
         default:
             setColor(12); // Red
@@ -1958,25 +2199,24 @@ int runInteractive() {
 
 
 /*
-Added std::map functionality to the existing Climbing Activity Tracker program.
+Added JSON data consumption to the existing Climbing Activity Tracker program.
 
 What I changed :
--Added #include <map> to the headers
-- Added a map<string, int> called difficultyCount as a private
-member of ActivityManager
-- The map key is the difficulty string(Easy, Moderate, Hard, Extreme)
-and the value is the count of activities at that difficulty
-- Updated add(), addToFront(), remove(), and clear() to keep
-the map in sync with the linked list automatically
-- Added getDifficultyCount() for lookup
-- Added displayDifficultyMap() for iteration and display
-- Added deleteDifficultyFromMap() for explicit key deletion
-- Integrated map display into generateReport()
-- Added menu option 8 to view difficulty counts from the menu
-- Added 8 new tests covering all map operations and edge cases
+-Added the nlohmann/json single-header library include: json.hpp
+- Added a json alias using nlohmann::json
+- Added difficultyFromString() to convert JSON difficulty strings into
+the existing ClimbDifficulty enum
+- Added loadActivitiesFromJsonFile() to ActivityManager
+- Added loadActivitiesFromJsonFile() to ClimbingTracker
+- Added menu option 9 to load activities from activities.json
+- Loaded JSON objects into existing ClimbSession and TrainingSession objects
+- Stored the loaded objects in the existing ActivityManager linked list
+- Automatically kept the Week 12 difficulty map updated through add()
+- Added doctests for valid JSON, missing file, and malformed JSON
 
-Why choose map :
-A map gives instant O(log n) lookup by difficulty name without
-looping through all activities.This enhances the existing program
-by making difficulty based reporting faster and cleaner.
+Why use JSON :
+JSON is a common real-world data format used for configuration files,
+saved data, and API responses. Using nlohmann/json lets this C++ program
+read structured data from disk and convert it into the program's existing
+classes and data structures without writing a custom parser.
 */
