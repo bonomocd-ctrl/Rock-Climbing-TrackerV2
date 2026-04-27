@@ -62,6 +62,10 @@ int main(int argc, char** argv) {
 #include <sstream>
 #include <vector>
 #include <cassert> //assert added by Chris Noonan for the week 11 assignment
+#include "json.hpp"
+#include "HttpClient.h"
+
+using json = nlohmann::json;
 // ===== ASSIGNMENT 12 ADDITION =====
 // map included for STL map usage
 #include <map>
@@ -109,8 +113,140 @@ public:
         : std::runtime_error(msg) {}
 };
 
-//New code for week 11 assignment, added by Chris Noonan
+//New code for week 14 assignment, added by Chris Noonan
+class JsonHttpClient : public HttpClient {
+private:
+    string response;
 
+public:
+    // Clears the string for data input
+    void StartOfData() override {
+        cout << "Start of data" << endl;
+        response.clear();
+    }
+
+    // Called repeatedly as chunks arrive
+    void Data(const char* data, const unsigned int size) override {
+        response.append(data, size);
+    }
+
+    // Signals completion 
+    void EndOfData() override {
+        cout << "End of data" << endl;
+    }
+
+    // Returns data
+    string GetResponse() const {
+        return response;
+    }
+};
+
+void fetchJokes(int count = 1, const string& category = "") {
+    JsonHttpClient client;
+
+    if (!client.Connect("api.macomb.io", 80)) {
+        cout << "Connection failed.\n";
+        return;
+    }
+
+    map<string, string> params;
+
+    if (count > 0)
+        params["count"] = to_string(count);
+
+    if (!category.empty())
+        params["category"] = category;
+
+    if (!client.Get("/jokes", params)) {
+        cout << "GET request failed.\n";
+        return;
+    }
+
+    string raw = client.GetResponse();
+
+    try {
+        json j = json::parse(raw);
+
+        int returnedCount = j["count"];
+        auto jokes = j["jokes"];
+
+        cout << "\n=== JOKES ===\n";
+
+        for (const auto& joke : jokes) {
+            int id = joke["id"];
+            string cat = joke["category"];
+            string setup = joke["setup"];
+            string punchline = joke["punchline"];
+
+            cout << "\nID: " << id
+                << "\nCategory: " << cat
+                << "\nSetup: " << setup
+                << "\nPunchline: " << punchline
+                << "\n---------------------\n";
+        }
+    }
+    catch (const json::exception& e) {
+        cout << "JSON parse error: " << e.what() << "\n";
+    }
+}
+
+struct Joke {
+    int id;
+    string category;
+    string setup;
+    string punchline;
+};
+
+void postJoke(const string& category, const string& setup, const string& punchline) {
+
+    JsonHttpClient client;
+
+    if (!client.Connect("api.macomb.io", INTERNET_DEFAULT_HTTP_PORT)) {
+        cout << "Connection failed.\n";
+        return;
+    }
+
+    //Build JSON request body
+    json body;
+    body["category"] = category;
+    body["setup"] = setup;
+    body["punchline"] = punchline;
+
+    string responseBody = body.dump();
+
+    //Send POST request
+    if (!client.Post("/jokes", responseBody)) {
+        cout << "POST failed.\n";
+        return;
+    }
+
+    string raw = client.GetResponse();
+
+    try {
+        json j = json::parse(raw);
+
+        cout << "\n=== POST SUCCESS ===\n";
+        cout << j["message"] << "\n";
+
+        // 3. Extract assigned ID
+        int newId = j["joke"]["id"];
+        cout << "Assigned ID: " << newId << "\n";
+
+        // 4. Store into existing program data structure
+        Joke jk;
+        jk.id = newId;
+        jk.category = j["joke"]["category"];
+        jk.setup = j["joke"]["setup"];
+        jk.punchline = j["joke"]["punchline"];
+
+        cout << "Joke stored in program.\n";
+    }
+    catch (json::exception& e) {
+        cout << "POST JSON parse error: " << e.what() << "\n";
+    }
+}
+
+//New code for week 11 assignment, added by Chris Noonan
 template <class Type>
 class arrayStack {
 private:
@@ -1849,6 +1985,20 @@ TEST_CASE("Map displays correctly with iterate") {
     mgr.clear();
 }
 
+TEST_CASE("fetchJokes does not crash with valid request") {
+    CHECK_NOTHROW(fetchJokes(1, "programming"));
+}
+
+TEST_CASE("postJoke builds valid JSON request and parses response safely") {
+    CHECK_NOTHROW(
+        postJoke(
+            "programming",
+            "Why do programmers hate nature?",
+            "It has too many bugs."
+        )
+    );
+}
+
 #else
 // =======================================================
 // INTERACTIVE MAIN (NOT USED IN CI)
@@ -1856,6 +2006,7 @@ TEST_CASE("Map displays correctly with iterate") {
 
 int runInteractive() {
     ClimbingTracker tracker;
+    vector<Joke> jokes;
 
     displayBanner();
 
@@ -1895,6 +2046,8 @@ int runInteractive() {
         // ===== ASSIGNMENT 12 ADDITION =====
         // New menu option to display difficulty map
         cout << "8. View Activity Count by Difficulty\n";
+        cout << "9. Get Joke API\n";
+        cout << "0. Post Joke API\n";
         cout << "Choice: ";
         cin >> choice;
 
@@ -1942,6 +2095,17 @@ int runInteractive() {
         // Display difficulty map from menu
         case 8:
             tracker.displayDifficultyMap();
+            break;
+
+        //Week 14 assignment
+        case 9:
+            fetchJokes(3, "programming");
+            break;
+        case 0:
+            postJoke(
+                "programming",
+                "Why did the programmer quit his job?",
+                "Because he didn't get arrays.");
             break;
 
         default:
